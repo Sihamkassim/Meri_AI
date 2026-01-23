@@ -82,7 +82,7 @@ export default function InstallPWA() {
                 <p className="font-semibold text-emerald-600 mb-2">Chrome/Edge (Desktop):</p>
                 <ol className="list-decimal list-inside space-y-1">
                   <li>Click the install icon in the address bar</li>
-                  <li>Or go to Menu (⋮) → Install ASTU Route AI</li>
+                  <li>Or go to Menu (⋮) → Install መሪ</li>
                 </ol>
               </div>
 

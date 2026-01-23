@@ -1,41 +1,45 @@
-'use client';
+"use client";
 
-import React from 'react';
-import Navbar from '../components/Navbar';
-import Hero from '../components/Hero';
-import MapWrapper from '../components/MapWrapper';
-import AIAssistant from '../components/AIAssistant';
-import Footer from '../components/Footer';
-import InstallPWA from '../components/InstallPWA';
-import { AppRoute } from '../types';
-import { CAMPUS_NODES } from '../constants';
-import { useAppStore } from '../store/useAppStore';
+import React from "react";
+import Navbar from "../components/Navbar";
+import Hero from "../components/Hero";
+import MapWrapper from "../components/MapWrapper";
+import AIAssistant from "../components/AIAssistant";
+import Footer from "../components/Footer";
+import InstallPWA from "../components/InstallPWA";
+import { AppRoute } from "../types";
+import { CAMPUS_NODES } from "../constants";
+import { useAppStore } from "../store/useAppStore";
+
+const HOME_BG_IMAGE_URL = "/astu.jpg";
 
 export default function Home() {
-  const currentRoute = useAppStore((state) => state.currentRoute);
-  const selectedDestId = useAppStore((state) => state.selectedDestId);
-  const setCurrentRoute = useAppStore((state) => state.setCurrentRoute);
-  const handleSearch = useAppStore((state) => state.handleSearch);
-  const navigateToDestination = useAppStore((state) => state.navigateToDestination);
+  const currentRoute = useAppStore((s) => s.currentRoute);
+  const selectedDestId = useAppStore((s) => s.selectedDestId);
+  const setCurrentRoute = useAppStore((s) => s.setCurrentRoute);
+  const navigateToDestination = useAppStore((s) => s.navigateToDestination);
 
   const renderContent = () => {
     switch (currentRoute) {
       case AppRoute.HOME:
         return (
-          <main className="flex-grow flex items-center animate-in fade-in duration-500">
+          <main className="flex-grow pt-28 flex items-center justify-center animate-in fade-in duration-700">
             <Hero />
           </main>
         );
 
       case AppRoute.MAP:
         return (
-          <main className="flex-grow max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-12 w-full animate-in slide-in-from-bottom-4 duration-500">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 h-full">
-              <div className="lg:col-span-8 h-[400px] sm:h-[500px] lg:h-[700px] rounded-3xl overflow-hidden shadow-lg">
+          <main className="flex-grow pt-28 max-w-7xl mx-auto px-4 lg:px-8 pb-14 w-full animate-in slide-in-from-bottom-4 duration-500">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              <div className="lg:col-span-8 h-[520px] lg:h-[720px] rounded-[32px] overflow-hidden bg-white/60 backdrop-blur-xl border border-white/40 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.25)]">
                 <MapWrapper selectedNodeId={selectedDestId} />
               </div>
-              <div className="lg:col-span-4 h-auto lg:h-[700px]">
-                <AIAssistant />
+
+              <div className="lg:col-span-4">
+                <div className="h-full rounded-[32px] bg-white/70 backdrop-blur-xl border border-white/40 shadow-lg">
+                  <AIAssistant />
+                </div>
               </div>
             </div>
           </main>
@@ -43,35 +47,49 @@ export default function Home() {
 
       case AppRoute.ASSISTANT:
         return (
-          <main className="flex-grow max-w-4xl mx-auto px-4 md:px-6 lg:px-8 py-8 md:py-12 w-full animate-in fade-in duration-500">
-            <div className="mb-6 md:mb-8">
-              <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Campus Intelligence Assistant</h1>
-              <p className="text-slate-500 text-sm">Official guidance system for navigation and facility information.</p>
+          <main className="flex-grow pt-28 max-w-4xl mx-auto px-4 animate-in fade-in duration-500">
+            <div className="rounded-[32px] bg-white/75 backdrop-blur-xl p-8 border border-white/50 shadow-xl">
+              <h1 className="text-3xl font-extrabold text-slate-900">
+                Campus Intelligence
+              </h1>
+              <p className="text-slate-600 mt-1 mb-6">
+                Ask Meri anything about ASTU.
+              </p>
+              <AIAssistant />
             </div>
-            <AIAssistant />
           </main>
         );
 
       case AppRoute.DIRECTORY:
         return (
-          <main className="flex-grow max-w-5xl mx-auto px-4 md:px-6 lg:px-8 py-10 md:py-16 w-full animate-in fade-in duration-500">
-            <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">Campus Directory</h1>
-            <p className="text-slate-500 mb-8 md:mb-12">Registry of all officially indexed facilities and departments.</p>
+          <main className="flex-grow pt-28 max-w-6xl mx-auto px-4 pb-20 animate-in fade-in duration-500">
+            <div className="text-center mb-14">
+              <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">
+                Campus Directory
+              </h1>
+              <p className="text-slate-600 mt-3 max-w-2xl mx-auto">
+                Quickly discover buildings, labs, and facilities.
+              </p>
+            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {CAMPUS_NODES.map(node => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {CAMPUS_NODES.map((node) => (
                 <div
                   key={node.id}
-                  className="p-5 md:p-6 bg-white border border-slate-100 rounded-2xl hover:border-emerald-200 hover:shadow-sm transition-all cursor-pointer group"
                   onClick={() => navigateToDestination(node.id)}
+                  className="group cursor-pointer rounded-3xl bg-white/70 backdrop-blur-xl border border-white/50 p-6 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
                 >
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
-                      {node.category}
-                    </span>
-                  </div>
-                  <h3 className="font-bold text-slate-900 group-hover:text-emerald-700 transition-colors text-base md:text-lg">{node.name}</h3>
-                  <p className="text-sm text-slate-500 mt-1">{node.description}</p>
+                  <span className="inline-block mb-3 text-[11px] font-bold uppercase tracking-widest text-emerald-700 bg-emerald-100/60 px-3 py-1 rounded-full">
+                    {node.category}
+                  </span>
+
+                  <h3 className="text-lg font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">
+                    {node.name}
+                  </h3>
+
+                  <p className="text-sm text-slate-500 mt-2 leading-relaxed">
+                    {node.description}
+                  </p>
                 </div>
               ))}
             </div>
@@ -79,22 +97,25 @@ export default function Home() {
         );
 
       default:
-        return (
-          <main className="flex-grow flex flex-col items-center justify-center">
-            <h1 className="text-2xl font-bold text-slate-900">Resource Not Found</h1>
-            <button
-              onClick={() => setCurrentRoute(AppRoute.HOME)}
-              className="mt-4 text-emerald-600 font-bold underline"
-            >
-              Return to Home
-            </button>
-          </main>
-        );
+        return null;
     }
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50">
+    <div className="relative min-h-screen flex flex-col overflow-x-hidden selection:bg-emerald-200">
+      {/* BACKGROUND */}
+      <div className="fixed inset-0 -z-10">
+        <div
+          className="absolute inset-0 bg-cover bg-center scale-110 transition-all duration-1000"
+          style={{
+            backgroundImage: `url(${HOME_BG_IMAGE_URL})`,
+            filter: currentRoute === AppRoute.HOME ? "blur(8px)" : "blur(18px)",
+          }}
+        />
+
+        <div className="absolute inset-0 bg-gradient-to-b from-white/70 via-white/80 to-slate-50" />
+      </div>
+
       <Navbar onNavigate={setCurrentRoute} currentRoute={currentRoute} />
       {renderContent()}
       <Footer />

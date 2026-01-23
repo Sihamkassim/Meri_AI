@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { AppRoute } from '../types';
-import { Menu, X } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { AppRoute } from "../types";
+import { Menu, X, MapPin, Sparkles } from "lucide-react";
 
 interface NavbarProps {
   onNavigate: (route: AppRoute) => void;
@@ -11,103 +11,111 @@ interface NavbarProps {
 
 const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentRoute }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
 
-  const toggleMenu = () => setIsOpen(!isOpen);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 10);
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
-  const handleNavigate = (route: AppRoute) => {
-    onNavigate(route);
-    setIsOpen(false);
-  };
+  const navBg =
+    scrolled || isOpen
+      ? "bg-white/75 backdrop-blur-xl border-b border-white/40 shadow-sm"
+      : "bg-transparent";
 
   return (
-    <nav className="bg-white border-b border-slate-100 sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-6 lg:px-8">
-        <div className="flex justify-between h-20 items-center">
-          {/* Logo Section */}
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleNavigate(AppRoute.HOME)}>
-            <div className="w-8 h-8 bg-emerald-600 rounded flex items-center justify-center">
-              <div className="w-4 h-4 border-2 border-white rounded-sm"></div>
+    <nav className={`fixed top-0 w-full z-50 transition-all ${navBg}`}>
+      <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+        {/* Logo */}
+        <button
+          onClick={() => onNavigate(AppRoute.HOME)}
+          className="flex items-center gap-2 group"
+        >
+          <MapPin className="w-9 h-9 text-emerald-600 group-hover:-translate-y-0.5 transition-transform" />
+          <div className="text-left">
+            <div className="font-extrabold text-xl text-slate-900 leading-none">
+              መሪ
             </div>
-            <span className="font-bold text-slate-900 text-lg tracking-tight whitespace-nowrap">ASTU Route AI</span>
+            <div className="text-[11px] tracking-widest uppercase text-emerald-600 font-bold">
+              MengedAI
+            </div>
           </div>
+        </button>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex gap-10">
-            <NavItem label="Home" active={currentRoute === AppRoute.HOME} onClick={() => handleNavigate(AppRoute.HOME)} />
-            <NavItem label="Campus Map" active={currentRoute === AppRoute.MAP} onClick={() => handleNavigate(AppRoute.MAP)} />
-            <NavItem label="Directory" active={currentRoute === AppRoute.DIRECTORY} onClick={() => handleNavigate(AppRoute.DIRECTORY)} />
-            <NavItem label="Assistant" active={currentRoute === AppRoute.ASSISTANT} onClick={() => handleNavigate(AppRoute.ASSISTANT)} />
-          </div>
+        {/* Desktop Nav */}
+        <div className="hidden md:flex items-center gap-8">
+          {["HOME", "MAP", "DIRECTORY", "ASSISTANT"].map((key) => {
+            const route = AppRoute[key as keyof typeof AppRoute];
+            const active = currentRoute === route;
 
-          {/* Desktop Action Button & Mobile Menu Toggle */}
-          <div className="flex items-center gap-4">
-            <div className="hidden sm:flex">
+            return (
               <button
-                onClick={() => handleNavigate(AppRoute.MAP)}
-                className="text-sm font-bold px-6 py-2.5 bg-slate-50 text-slate-900 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors active:scale-95"
+                key={key}
+                onClick={() => onNavigate(route)}
+                className={`relative font-semibold text-sm transition-colors ${
+                  active
+                    ? "text-emerald-600"
+                    : "text-slate-600 hover:text-emerald-600"
+                }`}
               >
-                Launch System
+                {key.toLowerCase()}
+                <span
+                  className={`absolute -bottom-1 left-0 h-0.5 bg-emerald-600 transition-all ${
+                    active ? "w-full" : "w-0"
+                  }`}
+                />
               </button>
-            </div>
+            );
+          })}
+        </div>
 
-            {/* Mobile Menu Button */}
-            <button
-              onClick={toggleMenu}
-              className="md:hidden p-2 text-slate-500 hover:text-slate-900 transition-colors"
-              aria-label="Toggle menu"
-            >
-              {isOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
-          </div>
+        {/* CTA */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => onNavigate(AppRoute.MAP)}
+            className="hidden sm:flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-full bg-slate-900 text-white hover:bg-emerald-600 transition shadow-lg"
+          >
+            <Sparkles size={16} className="text-amber-300" />
+            Find Route
+          </button>
+
+          <button
+            onClick={() => setIsOpen(!isOpen)}
+            className="md:hidden text-slate-700"
+          >
+            {isOpen ? <X size={28} /> : <Menu size={28} />}
+          </button>
         </div>
       </div>
 
-      {/* Mobile Menu Dropdown */}
+      {/* Mobile Menu */}
       <div
-        className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out bg-white border-b border-slate-100 ${isOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0 pointer-events-none'
-          }`}
+        className={`md:hidden overflow-hidden transition-all ${
+          isOpen ? "max-h-96" : "max-h-0"
+        } bg-white/90 backdrop-blur-xl`}
       >
-        <div className="px-6 py-4 flex flex-col gap-4">
-          <MobileNavItem label="Home" active={currentRoute === AppRoute.HOME} onClick={() => handleNavigate(AppRoute.HOME)} />
-          <MobileNavItem label="Campus Map" active={currentRoute === AppRoute.MAP} onClick={() => handleNavigate(AppRoute.MAP)} />
-          <MobileNavItem label="Directory" active={currentRoute === AppRoute.DIRECTORY} onClick={() => handleNavigate(AppRoute.DIRECTORY)} />
-          <MobileNavItem label="Assistant" active={currentRoute === AppRoute.ASSISTANT} onClick={() => handleNavigate(AppRoute.ASSISTANT)} />
-
-          <button
-            onClick={() => handleNavigate(AppRoute.MAP)}
-            className="w-full mt-2 text-sm font-bold py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors active:scale-[0.98] shadow-lg shadow-emerald-600/10"
-          >
-            Launch System
-          </button>
+        <div className="px-6 py-4 space-y-2">
+          {Object.values(AppRoute).map((route) => (
+            <button
+              key={route}
+              onClick={() => {
+                onNavigate(route);
+                setIsOpen(false);
+              }}
+              className={`block w-full text-left px-4 py-3 rounded-xl font-semibold ${
+                currentRoute === route
+                  ? "bg-emerald-50 text-emerald-700"
+                  : "text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              {route.toLowerCase()}
+            </button>
+          ))}
         </div>
       </div>
     </nav>
   );
 };
-
-const NavItem: React.FC<{ label: string, active: boolean, onClick: () => void }> = ({ label, active, onClick }) => (
-  <button
-    onClick={onClick}
-    className={`relative text-sm font-semibold tracking-wide transition-colors py-2 ${active ? 'text-emerald-600' : 'text-slate-500 hover:text-slate-900'
-      }`}
-  >
-    {label}
-    {active && (
-      <span className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-600 rounded-full" />
-    )}
-  </button>
-);
-
-const MobileNavItem: React.FC<{ label: string, active: boolean, onClick: () => void }> = ({ label, active, onClick }) => (
-  <button
-    onClick={onClick}
-    className={`text-left px-4 py-3 rounded-xl text-base font-semibold transition-all ${active
-        ? 'bg-emerald-50 text-emerald-600'
-        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-      }`}
-  >
-    {label}
-  </button>
-);
 
 export default Navbar;
