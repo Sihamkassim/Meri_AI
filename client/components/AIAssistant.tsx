@@ -38,7 +38,7 @@ const AIAssistant: React.FC = () => {
   };
 
   return (
-    <div className="bg-slate-900 rounded-[2rem] border border-slate-800 shadow-2xl flex flex-col h-[600px] overflow-hidden">
+    <div className="bg-slate-900 rounded-3xl border border-slate-800 shadow-2xl flex flex-col h-[500px] md:h-[600px] overflow-hidden">
       {/* Terminal Header */}
       <div className="px-6 py-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -63,11 +63,10 @@ const AIAssistant: React.FC = () => {
               <div className={`mt-1 p-2 rounded-xl flex-shrink-0 h-fit ${msg.role === 'user' ? 'bg-slate-800 text-slate-400' : 'bg-emerald-500 text-white'}`}>
                 {msg.role === 'user' ? <User size={14} /> : <Bot size={14} />}
               </div>
-              <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${
-                msg.role === 'user' 
-                ? 'bg-slate-800 text-white rounded-tr-none border border-slate-700' 
+              <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${msg.role === 'user'
+                ? 'bg-slate-800 text-white rounded-tr-none border border-slate-700'
                 : 'bg-slate-900 text-slate-300 rounded-tl-none border border-slate-800 shadow-lg'
-              }`}>
+                }`}>
                 {msg.content}
               </div>
             </div>
@@ -97,7 +96,7 @@ const AIAssistant: React.FC = () => {
             placeholder="Ask for directions or building info..."
             className="flex-grow px-5 py-3.5 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-sm text-white placeholder:text-slate-600"
           />
-          <button 
+          <button
             onClick={handleSend}
             disabled={!input.trim() || isLoading}
             className="p-3.5 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-90 shadow-lg shadow-emerald-500/20"

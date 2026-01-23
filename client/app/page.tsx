@@ -26,15 +26,15 @@ export default function Home() {
             <Hero />
           </main>
         );
-      
+
       case AppRoute.MAP:
         return (
-          <main className="flex-grow max-w-7xl mx-auto px-6 lg:px-8 py-12 w-full animate-in slide-in-from-bottom-4 duration-500">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-full">
-              <div className="lg:col-span-8 h-[600px] lg:h-[700px]">
+          <main className="flex-grow max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-12 w-full animate-in slide-in-from-bottom-4 duration-500">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 h-full">
+              <div className="lg:col-span-8 h-[400px] sm:h-[500px] lg:h-[700px] rounded-3xl overflow-hidden shadow-lg">
                 <MapWrapper selectedNodeId={selectedDestId} />
               </div>
-              <div className="lg:col-span-4 h-[600px] lg:h-[700px]">
+              <div className="lg:col-span-4 h-auto lg:h-[700px]">
                 <AIAssistant />
               </div>
             </div>
@@ -43,26 +43,26 @@ export default function Home() {
 
       case AppRoute.ASSISTANT:
         return (
-          <main className="flex-grow max-w-4xl mx-auto px-6 lg:px-8 py-12 w-full animate-in fade-in duration-500">
-             <div className="mb-8">
-               <h1 className="text-3xl font-bold text-slate-900">Campus Intelligence Assistant</h1>
-               <p className="text-slate-500 text-sm">Official guidance system for navigation and facility information.</p>
-             </div>
-             <AIAssistant />
+          <main className="flex-grow max-w-4xl mx-auto px-4 md:px-6 lg:px-8 py-8 md:py-12 w-full animate-in fade-in duration-500">
+            <div className="mb-6 md:mb-8">
+              <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Campus Intelligence Assistant</h1>
+              <p className="text-slate-500 text-sm">Official guidance system for navigation and facility information.</p>
+            </div>
+            <AIAssistant />
           </main>
         );
 
       case AppRoute.DIRECTORY:
         return (
-          <main className="flex-grow max-w-5xl mx-auto px-6 lg:px-8 py-16 w-full animate-in fade-in duration-500">
-            <h1 className="text-4xl font-bold text-slate-900 mb-2">Campus Directory</h1>
-            <p className="text-slate-500 mb-12">Registry of all officially indexed facilities and departments.</p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <main className="flex-grow max-w-5xl mx-auto px-4 md:px-6 lg:px-8 py-10 md:py-16 w-full animate-in fade-in duration-500">
+            <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">Campus Directory</h1>
+            <p className="text-slate-500 mb-8 md:mb-12">Registry of all officially indexed facilities and departments.</p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {CAMPUS_NODES.map(node => (
-                <div 
-                  key={node.id} 
-                  className="p-6 bg-white border border-slate-100 rounded-2xl hover:border-emerald-200 hover:shadow-sm transition-all cursor-pointer group"
+                <div
+                  key={node.id}
+                  className="p-5 md:p-6 bg-white border border-slate-100 rounded-2xl hover:border-emerald-200 hover:shadow-sm transition-all cursor-pointer group"
                   onClick={() => navigateToDestination(node.id)}
                 >
                   <div className="flex justify-between items-start mb-2">
@@ -70,7 +70,7 @@ export default function Home() {
                       {node.category}
                     </span>
                   </div>
-                  <h3 className="font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">{node.name}</h3>
+                  <h3 className="font-bold text-slate-900 group-hover:text-emerald-700 transition-colors text-base md:text-lg">{node.name}</h3>
                   <p className="text-sm text-slate-500 mt-1">{node.description}</p>
                 </div>
               ))}
@@ -82,7 +82,7 @@ export default function Home() {
         return (
           <main className="flex-grow flex flex-col items-center justify-center">
             <h1 className="text-2xl font-bold text-slate-900">Resource Not Found</h1>
-            <button 
+            <button
               onClick={() => setCurrentRoute(AppRoute.HOME)}
               className="mt-4 text-emerald-600 font-bold underline"
             >
