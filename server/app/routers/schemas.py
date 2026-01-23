@@ -3,7 +3,7 @@ app/routers/schemas.py
 Request and response schemas for API.
 """
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 
 class HealthResponse(BaseModel):
@@ -17,6 +17,7 @@ class QueryRequest(BaseModel):
     """University Q&A query request"""
     question: str = Field(..., description="Question about ASTU")
     stream: bool = Field(default=False, description="Stream response token-by-token")
+    max_sources: Optional[int] = Field(default=5, description="Maximum number of sources to retrieve")
 
 
 class QueryResponse(BaseModel):
@@ -24,6 +25,8 @@ class QueryResponse(BaseModel):
     question: str
     answer: str
     sources: Optional[List[str]] = None
+    confidence: Optional[float] = None
+    metadata: Optional[Dict[str, Any]] = None
 
 
 class RouteRequest(BaseModel):

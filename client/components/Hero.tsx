@@ -1,31 +1,27 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Search } from 'lucide-react';
+import { Search, MapPin, MessageCircle, Building2, Navigation } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
-import { CAMPUS_NODES } from '../constants';
+import { AppRoute } from '../types';
 
 const Hero: React.FC = () => {
   const [query, setQuery] = useState('');
   const handleSearchAction = useAppStore((state) => state.handleSearch);
-  const setSelectedDestId = useAppStore((state) => state.setSelectedDestId);
+  const setCurrentRoute = useAppStore((state) => state.setCurrentRoute);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
-      // Find matching node
-      const found = CAMPUS_NODES.find(n =>
-        n.name.toLowerCase().includes(query.toLowerCase()) ||
-        n.category.toLowerCase().includes(query.toLowerCase())
-      );
-
-      if (found) {
-        setSelectedDestId(found.id);
-      }
-
       handleSearchAction(query);
     }
   };
+
+  const quickActions = [
+    { icon: MapPin, label: 'Find Location', action: () => setCurrentRoute(AppRoute.MAP) },
+    { icon: MessageCircle, label: 'Ask AI', action: () => setCurrentRoute(AppRoute.ASSISTANT) },
+    { icon: Building2, label: 'Directory', action: () => setCurrentRoute(AppRoute.DIRECTORY) },
+  ];
 
   return (
     <div className="max-w-7xl mx-auto px-6 lg:px-8 pt-20 md:pt-32 pb-16 md:pb-24">
@@ -62,10 +58,24 @@ const Hero: React.FC = () => {
           </button>
         </form>
 
+        {/* Quick Actions */}
+        <div className="grid grid-cols-3 gap-4 mb-12">
+          {quickActions.map((action, idx) => (
+            <button
+              key={idx}
+              onClick={action.action}
+              className="flex flex-col items-center gap-2 p-4 bg-white border border-slate-200 rounded-2xl hover:border-emerald-300 hover:shadow-md transition-all group"
+            >
+              <action.icon className="w-6 h-6 text-slate-400 group-hover:text-emerald-600 transition-colors" />
+              <span className="text-xs font-bold text-slate-600 group-hover:text-emerald-600">{action.label}</span>
+            </button>
+          ))}
+        </div>
+
         <div className="flex flex-wrap gap-x-16 gap-y-4 pt-12 border-t border-slate-100">
           <span className="text-xs font-bold uppercase tracking-widest text-slate-400">100% Campus Coverage</span>
           <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Live AI Reasoning</span>
-          <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Secure Academic Data</span>
+          <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Nearby City Services</span>
         </div>
       </div>
     </div>

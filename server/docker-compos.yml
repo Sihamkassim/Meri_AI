@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  fastapi-app:
+    build: .
+    image: my-fastapi-app
+    container_name: divas-fastapi
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      # Mount code for hot-reload during development
+      - ./app:/app/app
+      - ./main.py:/app/main.py
+      - ./config.py:/app/config.py
+      - ./models.py:/app/models.py
+      - ./database.py:/app/database.py
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
+    networks:
+      - divas-network
+
+networks:
+  divas-network:
+    driver: bridge

@@ -1,11 +1,17 @@
 // ASTU Route AI - Admin Dashboard JavaScript
 const API_BASE = 'http://localhost:4000';
 let map = null;
+let poiMap = null;
 let markers = [];
+
+// Global state
+let isSelectingLocation = false;
+let tempMarker = null;
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
     initMap();
+    initPOIMap();
     loadStats();
     loadPOIs();
     loadDocuments();
@@ -33,32 +39,43 @@ function initMap() {
             crossOrigin: true
         });
         
-        const satelliteView = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            attribution: 'Tiles © Esri',
-            maxZoom: 19
+        // Labels layer (reusable)
+        const labelsLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}.png', {
+            attribution: '© CARTO',
+            maxZoom: 19,
+            pane: 'shadowPane'
         });
         
-        const hybridView = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            attribution: 'Tiles © Esri',
-            maxZoom: 19
-        });
+        // Satellite with labels
+        const satelliteView = L.layerGroup([
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles © Esri',
+                maxZoom: 19
+            }),
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}.png', {
+                attribution: '© CARTO',
+                maxZoom: 19,
+                pane: 'shadowPane'
+            })
+        ]);
         
-        const labels = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap, © CARTO',
-            maxZoom: 19
-        });
-        
-        // Create layer groups
-        const hybrid = L.layerGroup([satelliteView, labels]);
+        // Hybrid view combining satellite and labels
+        const hybridView = L.layerGroup([
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles © Esri',
+                maxZoom: 19
+            }),
+            labelsLayer
+        ]);
         
         // Add default layer
         normalView.addTo(map);
         
         // Layer control
         const baseLayers = {
-            "🗺️ Normal View": normalView,
-            "🛰️ Satellite View": satelliteView,
-            "🌍 Hybrid View": hybrid
+            "🗺️ Street Map": normalView,
+            "🛰️ Satellite + Labels": satelliteView,
+            "🌍 Hybrid": hybridView
         };
         
         L.control.layers(baseLayers).addTo(map);
@@ -69,6 +86,13 @@ function initMap() {
             .bindPopup('<b>ASTU Main Gate</b>')
             .openPopup();
         
+        // Add click handler for POI selection
+        map.on('click', function(e) {
+            if (isSelectingLocation) {
+                selectLocationOnMap(e.latlng);
+            }
+        });
+        
         // Force map to recalculate size after a short delay
         setTimeout(() => {
             map.invalidateSize();
@@ -77,6 +101,65 @@ function initMap() {
         
     } catch (error) {
         console.error('Failed to initialize map:', error);
+    }
+}
+
+// Initialize POI Map (on POI tab)
+function initPOIMap() {
+    try {
+        poiMap = L.map('poiMap', {
+            center: [8.5569, 39.2911],
+            zoom: 16,
+            zoomControl: true
+        });
+        
+        // Define base layers
+        const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        });
+        
+        const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 19,
+            attribution: '© Esri'
+        });
+        
+        const hybridLayer = L.layerGroup([
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                maxZoom: 19,
+                attribution: '© Esri'
+            }),
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© CARTO'
+            })
+        ]);
+        
+        // Add default layer
+        osmLayer.addTo(poiMap);
+        
+        // Add layer control
+        const baseLayers = {
+            '🗺️ Street Map': osmLayer,
+            '🛰️ Satellite': satelliteLayer,
+            '🌍 Hybrid': hybridLayer
+        };
+        
+        L.control.layers(baseLayers).addTo(poiMap);
+        
+        // ASTU main marker
+        L.marker([8.5569, 39.2911])
+            .addTo(poiMap)
+            .bindPopup('<b>ASTU Main Gate</b>');
+        
+        // Click handler for location selection - always active
+        poiMap.on('click', function(e) {
+            selectLocationOnMap(e.latlng);
+        });
+        
+        setTimeout(() => poiMap.invalidateSize(), 100);
+    } catch (error) {
+        console.error('Failed to initialize POI map:', error);
     }
 }
 
@@ -147,20 +230,42 @@ function switchTab(tabName) {
     event.target.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
     event.target.classList.remove('text-gray-500', 'hover:text-gray-700');
     
-    // Refresh map if map tab
+    // Refresh maps and enable selection mode
     if (tabName === 'map') {
         setTimeout(() => map.invalidateSize(), 100);
+        isSelectingLocation = false;
+    } else if (tabName === 'pois') {
+        setTimeout(() => poiMap.invalidateSize(), 100);
+        isSelectingLocation = true;
+        enableMapSelection();
     }
 }
 
 // POI Management
-function showAddPOIForm() {
-    document.getElementById('addPOIForm').classList.remove('hidden');
+function openModal() {
+    const modal = document.getElementById('poiModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('show');
+    document.body.style.overflow = 'hidden'; // Prevent background scroll
 }
 
-function hideAddPOIForm() {
-    document.getElementById('addPOIForm').classList.add('hidden');
-    // Clear all form fields
+function closeModal() {
+    const modal = document.getElementById('poiModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('show');
+    document.body.style.overflow = 'auto';
+    
+    // Remove temp marker
+    if (tempMarker) {
+        poiMap.removeLayer(tempMarker);
+        tempMarker = null;
+    }
+    
+    // Clear form fields
+    clearPOIForm();
+}
+
+function clearPOIForm() {
     document.getElementById('poi_name').value = '';
     document.getElementById('poi_category').value = '';
     document.getElementById('poi_lat').value = '';
@@ -171,6 +276,49 @@ function hideAddPOIForm() {
     document.getElementById('poi_floor').value = '';
     document.getElementById('poi_room').value = '';
     document.getElementById('poi_capacity').value = '';
+    document.getElementById('modalCoordinates').textContent = 'Location: Not selected';
+}
+
+function enableMapSelection() {
+    // Map is always in selection mode in POI tab
+    isSelectingLocation = true;
+}
+
+function disableMapSelection() {
+    // Keep selection mode always active in POI tab
+    isSelectingLocation = true;
+}
+
+function selectLocationOnMap(latlng) {
+    // Remove previous temp marker
+    if (tempMarker) {
+        poiMap.removeLayer(tempMarker);
+    }
+    
+    // Add new temp marker with pulsing effect
+    tempMarker = L.marker(latlng, {
+        icon: L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [30, 48],
+            iconAnchor: [15, 48],
+            popupAnchor: [0, -48]
+        })
+    }).addTo(poiMap);
+    
+    // Fill coordinates
+    document.getElementById('poi_lat').value = latlng.lat.toFixed(6);
+    document.getElementById('poi_lng').value = latlng.lng.toFixed(6);
+    
+    // Update modal coordinate display
+    document.getElementById('modalCoordinates').textContent = 
+        `Location: ${latlng.lat.toFixed(6)}, ${latlng.lng.toFixed(6)}`;
+    
+    // Open modal
+    openModal();
+    
+    // Pan map to marker
+    poiMap.panTo(latlng);
 }
 
 async function addPOI() {
@@ -188,7 +336,7 @@ async function addPOI() {
     };
     
     if (!poi.name || !poi.category || !poi.latitude || !poi.longitude) {
-        alert('Please fill all required fields');
+        showNotification('Please fill all required fields: Name, Category, and Location', 'warning');
         return;
     }
     
@@ -205,25 +353,35 @@ async function addPOI() {
         
         const result = await response.json();
         
-        // Add marker to map
-        L.marker([poi.latitude, poi.longitude], {
-            icon: L.icon({
-                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-                iconSize: [25, 41],
-                iconAnchor: [12, 41]
-            })
-        })
-        .addTo(map)
-        .bindPopup(`<b>${poi.name}</b><br>${poi.category}`);
+        // Remove temp marker
+        if (tempMarker) {
+            poiMap.removeLayer(tempMarker);
+            tempMarker = null;
+        }
         
-        alert(`POI "${poi.name}" added successfully!`);
-        hideAddPOIForm();
+        // Add permanent marker to both maps
+        const markerIcon = L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41]
+        });
+        
+        L.marker([poi.latitude, poi.longitude], { icon: markerIcon })
+            .addTo(map)
+            .bindPopup(`<b>${poi.name}</b><br>${poi.category}`);
+        
+        L.marker([poi.latitude, poi.longitude], { icon: markerIcon })
+            .addTo(poiMap)
+            .bindPopup(`<b>${poi.name}</b><br>${poi.category}`);
+        
+        showNotification(`POI "${poi.name}" added successfully to campus map`, 'success');
+        closeModal();
         loadPOIs();
         loadStats();  // Refresh stats
     } catch (error) {
         console.error('Failed to add POI:', error);
-        alert(`Failed to add POI: ${error.message}`);
+        showNotification(`Failed to add POI: ${error.message}`, 'error');
     }
 }
 
@@ -251,10 +409,13 @@ async function loadPOIs() {
                 </div>
             `).join('');
             
-            // Add markers to map
+            // Add markers to both maps
             data.pois.forEach(poi => {
                 L.marker([poi.latitude, poi.longitude])
                     .addTo(map)
+                    .bindPopup(`<b>${poi.name}</b><br>${poi.category}`);
+                L.marker([poi.latitude, poi.longitude])
+                    .addTo(poiMap)
                     .bindPopup(`<b>${poi.name}</b><br>${poi.category}`);
             });
         } else {
@@ -286,7 +447,7 @@ async function addDocument() {
     };
     
     if (!doc.title || !doc.content || !doc.source) {
-        alert('Please fill all required fields');
+        showNotification('Please fill all required fields: Title, Content, and Category', 'warning');
         return;
     }
     
@@ -306,13 +467,13 @@ async function addDocument() {
         }
         
         const result = await response.json();
-        alert(`Document "${doc.title}" added successfully!`);
+        showNotification(`✓ Document "${doc.title}" added with embedding! Ready for RAG queries.`, 'success');
         hideAddDocForm();
         loadDocuments();
         loadStats();  // Refresh stats
     } catch (error) {
         console.error('Failed to add document:', error);
-        alert(`Failed to add document: ${error.message}`);
+        showNotification(`Failed to add document: ${error.message}`, 'error');
     }
 }
 
@@ -346,7 +507,7 @@ async function testAI() {
     const urgency = document.getElementById('test_urgency').value;
     
     if (!query) {
-        alert('Please enter a question');
+        showNotification('Please enter a question to test', 'warning');
         return;
     }
     
@@ -435,4 +596,26 @@ async function testOSMRoute() {
         console.error('OSM route failed:', error);
         infoDiv.innerHTML = `<p class="text-orange-600">OSM integration coming soon! Error: ${error.message}</p>`;
     }
+}
+
+// Notification System
+function showNotification(message, type = 'info') {
+    const colors = {
+        success: 'bg-green-500',
+        error: 'bg-red-500',
+        warning: 'bg-yellow-500',
+        info: 'bg-blue-500'
+    };
+    
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 ${colors[type]} text-white px-6 py-4 rounded-lg shadow-lg z-50 animate-slide-in`;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transition = 'opacity 0.3s';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
 }

@@ -18,7 +18,7 @@ from config import settings
 from app.core.logging_config import logger, setup_logging
 from app.core.exceptions import AstuRouteException
 from app.core.container import container
-from app.routers import health, query, route, nearby, ai, osm
+from app.routers import health, query, route, nearby, ai, osm, map as map_router
 import logging
 
 # Setup logging
@@ -147,6 +147,7 @@ app.include_router(osm.router)  # OSM routing
 app.include_router(query.router)
 app.include_router(route.router)
 app.include_router(nearby.router)
+app.include_router(map_router.router)  # New campus map router
 
 # Mount static files (admin dashboard) - only if directory exists
 import os

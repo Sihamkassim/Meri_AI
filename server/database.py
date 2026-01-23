@@ -84,7 +84,7 @@ class Database:
                             content TEXT NOT NULL,
                             source VARCHAR(255),
                             tags TEXT[],
-                            embedding vector(768),
+                            embedding vector(1024),
                             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                         );
                     """)
@@ -214,6 +214,26 @@ class Database:
         except Exception as e:
             logger.error(f"✗ Semantic search failed: {e}")
             return []
+    
+    async def execute_query(self, query: str, *params) -> List[Dict]:
+        """Execute a parameterized query and return results"""
+        try:
+            # Convert PostgreSQL $1, $2 placeholders to %s for psycopg
+            formatted_query = query
+            for i in range(len(params), 0, -1):
+                formatted_query = formatted_query.replace(f'${i}', '%s')
+            
+            with psycopg.connect(self.connection_string, row_factory=dict_row) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(formatted_query, params)
+                    
+                    # Check if query returns results
+                    if cur.description:
+                        return cur.fetchall()
+                    return []
+        except Exception as e:
+            logger.error(f"✗ Query execution failed: {e}")
+            raise
 
 
 # Global database instance

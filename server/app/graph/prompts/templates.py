@@ -115,18 +115,18 @@ You must:
 MODEL_CONFIGS = {
     "intent_classifier": {
         "temperature": 0.0,
-        "model": "gemini-1.5-flash"
+        "model": "gemini-2.5-flash"
     },
     "geo_reasoning": {
         "temperature": 0.3,
-        "model": "gemini-1.5-flash"
+        "model": "gemini-2.5-flash"
     },
     "rag_generator": {
         "temperature": 0.2,
-        "model": "gemini-1.5-flash"
+        "model": "gemini-2.5-flash"
     },
     "reasoning_stream": {
         "temperature": 0.4,
-        "model": "gemini-1.5-flash"
+        "model": "gemini-2.5-flash"
     }
 }
