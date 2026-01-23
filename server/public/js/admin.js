@@ -39,32 +39,43 @@ function initMap() {
             crossOrigin: true
         });
         
-        const satelliteView = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            attribution: 'Tiles © Esri',
-            maxZoom: 19
+        // Labels layer (reusable)
+        const labelsLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}.png', {
+            attribution: '© CARTO',
+            maxZoom: 19,
+            pane: 'shadowPane'
         });
         
-        const hybridView = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            attribution: 'Tiles © Esri',
-            maxZoom: 19
-        });
+        // Satellite with labels
+        const satelliteView = L.layerGroup([
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles © Esri',
+                maxZoom: 19
+            }),
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}.png', {
+                attribution: '© CARTO',
+                maxZoom: 19,
+                pane: 'shadowPane'
+            })
+        ]);
         
-        const labels = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap, © CARTO',
-            maxZoom: 19
-        });
-        
-        // Create layer groups
-        const hybrid = L.layerGroup([satelliteView, labels]);
+        // Hybrid view combining satellite and labels
+        const hybridView = L.layerGroup([
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles © Esri',
+                maxZoom: 19
+            }),
+            labelsLayer
+        ]);
         
         // Add default layer
         normalView.addTo(map);
         
         // Layer control
         const baseLayers = {
-            "🗺️ Normal View": normalView,
-            "🛰️ Satellite View": satelliteView,
-            "🌍 Hybrid View": hybrid
+            "🗺️ Street Map": normalView,
+            "🛰️ Satellite + Labels": satelliteView,
+            "🌍 Hybrid": hybridView
         };
         
         L.control.layers(baseLayers).addTo(map);

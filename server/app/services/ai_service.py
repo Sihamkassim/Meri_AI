@@ -12,23 +12,22 @@ from app.services.interfaces import IAIService
 
 
 class GeminiAIService(IAIService):
-    """Gemini AI service using Google's API"""
+    """Gemini AI service using Google's native API for text, Voyage AI for embeddings"""
     
     def __init__(self):
         self.api_key = settings.ai_api_key
         self.model = settings.ai_model
-        self.embedding_model = settings.embedding_model
+        self.voyage_api_key = settings.voyage_api_key
+        self.embedding_model = "voyage-2"  # Voyage AI model
         self.timeout = settings.ai_stream_timeout
-        self.base_url = "https://generativelanguage.googleapis.com/v1beta/openai"
+        self.base_url = "https://generativelanguage.googleapis.com/v1beta"
+        self.voyage_url = "https://api.voyageai.com/v1"
         self._client = None
     
     async def _get_client(self) -> httpx.AsyncClient:
         """Lazy-load async client"""
         if self._client is None:
-            self._client = httpx.AsyncClient(
-                headers={"Authorization": f"Bearer {self.api_key}"},
-                timeout=self.timeout
-            )
+            self._client = httpx.AsyncClient(timeout=self.timeout)
         return self._client
     
     async def __aenter__(self):
@@ -45,99 +44,136 @@ class GeminiAIService(IAIService):
     
     async def generate_embedding(self, text: str) -> List[float]:
         """
-        Generate embedding for text using Gemini.
-        Note: Gemini currently uses OpenAI-compatible embedding endpoint.
+        Generate embedding for text using Voyage AI.
+        Returns 1024-dimensional vector from voyage-2 model (optimized for RAG).
         """
         try:
             client = await self._get_client()
             
             response = await client.post(
-                f"{self.base_url}/embeddings",
+                f"{self.voyage_url}/embeddings",
+                headers={
+                    "Authorization": f"Bearer {self.voyage_api_key}",
+                    "Content-Type": "application/json"
+                },
                 json={
                     "model": self.embedding_model,
                     "input": text
-                },
-                params={"key": self.api_key}
+                }
             )
             
             if response.status_code != 200:
                 raise AIServiceException(
-                    f"Embedding generation failed: {response.text}"
+                    f"Voyage embedding generation failed: {response.text}"
                 )
             
             data = response.json()
             embedding = data["data"][0]["embedding"]
-            ai_logger.info(f"Generated embedding for text (len={len(text)})")
+            ai_logger.info(f"Generated Voyage embedding (dim={len(embedding)}) for text (len={len(text)})")
             return embedding
             
         except httpx.RequestError as e:
-            raise AIServiceException(f"Embedding request failed: {str(e)}")
+            raise AIServiceException(f"Voyage embedding request failed: {str(e)}")
     
     async def generate_text(self, prompt: str, temperature: float = 0.7) -> str:
         """
-        Generate text response from Gemini.
+        Generate text response from Gemini using native API.
         """
         try:
             client = await self._get_client()
             
+            # Gemini API format: /v1beta/models/{model}:generateContent?key=API_KEY
             response = await client.post(
-                f"{self.base_url}/chat/completions",
+                f"{self.base_url}/models/{self.model}:generateContent",
+                params={"key": self.api_key},
                 json={
-                    "model": self.model,
-                    "messages": [{"role": "user", "content": prompt}],
-                    "temperature": temperature,
-                    "stream": False
-                },
-                params={"key": self.api_key}
+                    "contents": [{
+                        "parts": [{"text": prompt}]
+                    }],
+                    "generationConfig": {
+                        "temperature": temperature,
+                        "maxOutputTokens": 2048
+                    }
+                }
             )
             
+            # Log response details for debugging
+            ai_logger.info(f"Gemini API status: {response.status_code}")
+            
             if response.status_code != 200:
+                error_text = response.text
+                ai_logger.error(f"Gemini API error: {error_text}")
                 raise AIServiceException(
-                    f"Text generation failed: {response.text}"
+                    f"Text generation failed (status {response.status_code}): {error_text}"
                 )
             
             data = response.json()
-            text = data["choices"][0]["message"]["content"]
+            ai_logger.debug(f"Gemini response: {data}")
+            
+            # Check if response has candidates
+            if "candidates" not in data or len(data["candidates"]) == 0:
+                raise AIServiceException(
+                    f"No candidates in Gemini response: {data}"
+                )
+            
+            text = data["candidates"][0]["content"]["parts"][0]["text"]
             ai_logger.info(f"Generated text response (len={len(text)})")
             return text
             
         except httpx.RequestError as e:
+            ai_logger.error(f"HTTP request failed: {str(e)}")
             raise AIServiceException(f"Text generation request failed: {str(e)}")
+        except KeyError as e:
+            ai_logger.error(f"Unexpected response format: {str(e)}")
+            raise AIServiceException(f"Invalid response from Gemini: {str(e)}")
+        except Exception as e:
+            ai_logger.error(f"Unexpected error: {str(e)}")
+            raise AIServiceException(f"Text generation error: {str(e)}")
     
     async def stream_text(self, prompt: str, temperature: float = 0.7) -> AsyncGenerator[str, None]:
         """
-        Stream text response from Gemini token-by-token.
+        Stream text response from Gemini using native streaming API.
         """
         try:
             client = await self._get_client()
             
             async with client.stream(
                 "POST",
-                f"{self.base_url}/chat/completions",
+                f"{self.base_url}/models/{self.model}:streamGenerateContent",
+                params={"key": self.api_key, "alt": "sse"},
                 json={
-                    "model": self.model,
-                    "messages": [{"role": "user", "content": prompt}],
-                    "temperature": temperature,
-                    "stream": True
-                },
-                params={"key": self.api_key}
+                    "contents": [{
+                        "parts": [{"text": prompt}]
+                    }],
+                    "generationConfig": {
+                        "temperature": temperature,
+                        "maxOutputTokens": 2048
+                    }
+                }
             ) as response:
                 if response.status_code != 200:
                     raise AIServiceException(
                         f"Stream generation failed: {response.status_code}"
                     )
                 
+                import json
                 async for line in response.aiter_lines():
                     if line.startswith("data: "):
                         try:
-                            import json
                             chunk = json.loads(line[6:])
-                            if chunk["choices"][0]["delta"].get("content"):
-                                yield chunk["choices"][0]["delta"]["content"]
-                        except (json.JSONDecodeError, KeyError, IndexError):
+                            if "candidates" in chunk and len(chunk["candidates"]) > 0:
+                                content = chunk["candidates"][0].get("content", {})
+                                if "parts" in content and len(content["parts"]) > 0:
+                                    text = content["parts"][0].get("text", "")
+                                    if text:
+                                        yield text
+                        except (json.JSONDecodeError, KeyError, IndexError) as e:
+                            ai_logger.warning(f"Failed to parse chunk: {e}")
                             continue
                 
                 ai_logger.info("Stream text generation completed")
                 
         except httpx.RequestError as e:
+            raise AIServiceException(f"Stream request failed: {str(e)}")
+
             raise AIServiceException(f"Stream request failed: {str(e)}")

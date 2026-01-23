@@ -84,7 +84,7 @@ class Database:
                             content TEXT NOT NULL,
                             source VARCHAR(255),
                             tags TEXT[],
-                            embedding vector(768),
+                            embedding vector(1024),
                             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                         );
                     """)

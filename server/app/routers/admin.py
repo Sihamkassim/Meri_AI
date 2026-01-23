@@ -227,18 +227,14 @@ async def create_document(
         
         doc_id = result[0]["id"]
         
-        # Store in vector database
-        await vector.store_document({
-            "id": doc_id,
-            "content": content,
-            "metadata": {
-                "title": title,
-                "source": source,
-                "tags": tags_list or []
-            }
-        })
+        # Document already stored with embedding via execute_query above
+        # Vector service is for search only, not storage
         
-        return {"id": doc_id, "message": "Document created successfully"}
+        return {
+            "id": doc_id,
+            "message": "Document created successfully",
+            "embedding_dim": len(embedding)
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create document: {str(e)}")
 
@@ -282,17 +278,14 @@ async def upload_document(
         
         doc_id = result[0]["id"]
         
-        # Store in vector database
-        await vector.store_document({
-            "id": doc_id,
-            "content": text_content,
-            "metadata": {
-                "title": doc_title,
-                "source": source or file.filename
-            }
-        })
+        # Document already stored with embedding via execute_query above
+        # Vector service is for search only, not storage
         
-        return {"id": doc_id, "message": f"Document '{doc_title}' uploaded successfully"}
+        return {
+            "id": doc_id,
+            "message": f"Document '{doc_title}' uploaded successfully",
+            "embedding_dim": len(embedding)
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to upload document: {str(e)}")
 

@@ -47,23 +47,30 @@ class RAGService:
             prompt = self._build_prompt(question, context)
             answer_text = await self.ai.generate_text(prompt)
 
-            # Build sources list for response
+            # Build sources list for response (as strings for QueryResponse model)
             sources = []
             for d in documents:
                 try:
-                    sources.append({
-                        "id": getattr(d, "id", None),
-                        "title": getattr(d, "title", None),
-                        "source": getattr(d, "source", None),
-                    })
+                    title = getattr(d, "title", None)
+                    source = getattr(d, "source", None)
+                    # Format as "title (source)" or just use available field
+                    if title and source:
+                        sources.append(f"{title} ({source})")
+                    elif title:
+                        sources.append(title)
+                    elif source:
+                        sources.append(source)
                 except Exception:
                     # Fallback if document is a dict
                     if isinstance(d, dict):
-                        sources.append({
-                            "id": d.get("id"),
-                            "title": d.get("title"),
-                            "source": d.get("source"),
-                        })
+                        title = d.get("title")
+                        source = d.get("source")
+                        if title and source:
+                            sources.append(f"{title} ({source})")
+                        elif title:
+                            sources.append(title)
+                        elif source:
+                            sources.append(source)
 
             ai_logger.info(f"Answer generated (len={len(answer_text)})")
 
