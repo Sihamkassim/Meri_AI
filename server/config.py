@@ -19,10 +19,13 @@ class Settings(BaseSettings):
     database_url: str
     
     # Gemini AI Configuration
-    ai_model: str = "gemini-1.5-flash"
+    ai_model: str = "gemini-2.5-flash"
     ai_api_key: str
     ai_stream_timeout: int = 30
     embedding_model: str = "text-embedding-004"
+    
+    # Voyage AI Configuration (for RAG embeddings)
+    voyage_api_key: Optional[str] = None
     
     # Server Configuration
     port: int = 4000
@@ -49,9 +52,9 @@ class Settings(BaseSettings):
 # Global settings instance
 try:
     settings = Settings()
-    print("✓ Settings loaded successfully")
+    print("[OK] Settings loaded successfully")
 except Exception as e:
-    print(f"✗ Error loading settings: {e}")
+    print(f"[ERROR] Error loading settings: {e}")
     raise
 
 

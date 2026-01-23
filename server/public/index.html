@@ -22,6 +22,20 @@
             height: 100%;
             width: 100%;
         }
+        /* Ensure Leaflet controls don't conflict with modal */
+        .leaflet-control-layers {
+            z-index: 10 !important;
+        }
+        .leaflet-pane {
+            z-index: 5 !important;
+        }
+        /* Modal styles */
+        #poiModal {
+            z-index: 9999 !important;
+        }
+        #poiModal.show {
+            display: flex !important;
+        }
         .stat-card { transition: transform 0.2s; }
         .stat-card:hover { transform: translateY(-2px); }
     </style>
@@ -131,51 +145,77 @@
                 <div id="tab-pois" class="tab-content hidden">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="text-xl font-bold">Campus POIs Management</h3>
-                        <button onclick="showAddPOIForm()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
-                            + Add POI
-                        </button>
                     </div>
                     
-                    <!-- Add POI Form -->
-                    <div id="addPOIForm" class="hidden mb-6 bg-gray-50 p-6 rounded-lg border border-gray-200">
-                        <h4 class="font-bold mb-4">Add New Campus POI</h4>
-                        <div class="grid grid-cols-2 gap-4">
-                            <!-- Basic Info -->
-                            <input type="text" id="poi_name" placeholder="Name (e.g., Main Library)" class="px-4 py-2 border rounded-lg" required>
-                            <select id="poi_category" class="px-4 py-2 border rounded-lg" required>
-                                <option value="">Select Category</option>
-                                <option value="building">Building</option>
-                                <option value="lab">Laboratory</option>
-                                <option value="office">Office</option>
-                                <option value="classroom">Classroom</option>
-                                <option value="cafeteria">Cafeteria</option>
-                                <option value="library">Library</option>
-                                <option value="gate">Gate</option>
-                                <option value="parking">Parking</option>
-                                <option value="service">Service</option>
-                            </select>
-                            
-                            <!-- Location Details -->
-                            <input type="text" id="poi_building" placeholder="Building Name (optional)" class="px-4 py-2 border rounded-lg">
-                            <input type="text" id="poi_block" placeholder="Block Number (e.g., A, B, C)" class="px-4 py-2 border rounded-lg">
-                            <input type="number" id="poi_floor" placeholder="Floor Number (optional)" class="px-4 py-2 border rounded-lg">
-                            <input type="text" id="poi_room" placeholder="Room Number (e.g., 201, Lab-3)" class="px-4 py-2 border rounded-lg">
-                            <input type="number" id="poi_capacity" placeholder="Capacity (optional)" class="px-4 py-2 border rounded-lg">
-                            
-                            <!-- GPS Coordinates -->
-                            <input type="number" step="0.000001" id="poi_lat" placeholder="Latitude (e.g., 8.5569)" class="px-4 py-2 border rounded-lg" required>
-                            <input type="number" step="0.000001" id="poi_lng" placeholder="Longitude (e.g., 39.2911)" class="px-4 py-2 border rounded-lg" required>
-                            
-                            <!-- Description -->
-                            <textarea id="poi_desc" placeholder="Description (optional)" class="px-4 py-2 border rounded-lg col-span-2" rows="2"></textarea>
-                            
-                            <!-- Actions -->
-                            <div class="col-span-2 flex gap-2">
-                                <button onclick="addPOI()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg">
-                                    💾 Save POI
+                    <!-- Map for POI Selection -->
+                    <div class="mb-6 bg-white rounded-lg shadow-lg border border-gray-300 p-4">
+                        <div class="flex justify-between items-center mb-3">
+                            <h4 class="font-semibold text-gray-700">📍 Interactive POI Map</h4>
+                            <span class="text-sm text-gray-500 bg-blue-50 px-3 py-1 rounded-full">Click on map to add POI</span>
+                        </div>
+                        <div id="poiMap" class="rounded-lg border-2 border-gray-200" style="height: 500px; width: 100%; cursor: crosshair;"></div>
+                    </div>
+                    
+                    <!-- POI Modal -->
+                    <div id="poiModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center">
+                        <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+                            <!-- Modal Header -->
+                            <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 rounded-t-2xl flex justify-between items-center">
+                                <div>
+                                    <h3 class="text-xl font-bold">📍 New Campus POI</h3>
+                                    <p class="text-blue-100 text-sm" id="modalCoordinates">Location: Not selected</p>
+                                </div>
+                                <button onclick="closeModal()" class="text-white hover:bg-blue-800 rounded-full p-2 transition">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                    </svg>
                                 </button>
-                                <button onclick="hideAddPOIForm()" class="bg-gray-400 hover:bg-gray-500 text-white px-6 py-2 rounded-lg">
+                            </div>
+                            
+                            <!-- Modal Body -->
+                            <div class="p-6">
+                                <div class="grid grid-cols-2 gap-4">
+                                    <!-- Basic Info -->
+                                    <input type="text" id="poi_name" placeholder="Name (e.g., Main Library)" class="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" required>
+                                    <select id="poi_category" class="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" required>
+                                        <option value="">Select Category</option>
+                                        <option value="building">Building</option>
+                                        <option value="lab">Laboratory</option>
+                                        <option value="office">Office</option>
+                                        <option value="classroom">Classroom</option>
+                                        <option value="cafeteria">Cafeteria</option>
+                                        <option value="library">Library</option>
+                                        <option value="gate">Gate</option>
+                                        <option value="parking">Parking</option>
+                                        <option value="service">Service</option>
+                                    </select>
+                                    
+                                    <!-- Location Details -->
+                                    <input type="text" id="poi_building" placeholder="Building Name (optional)" class="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    <input type="text" id="poi_block" placeholder="Block Number (e.g., A, B, C)" class="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    <input type="number" id="poi_floor" placeholder="Floor Number (optional)" class="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    <input type="text" id="poi_room" placeholder="Room Number (e.g., 201, Lab-3)" class="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    <input type="number" id="poi_capacity" placeholder="Capacity (optional)" class="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    
+                                    <!-- GPS Coordinates -->
+                                    <input type="number" step="0.000001" id="poi_lat" placeholder="Latitude (e.g., 8.5569)" class="px-4 py-2 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500" readonly required>
+                                    <input type="number" step="0.000001" id="poi_lng" placeholder="Longitude (e.g., 39.2911)" class="px-4 py-2 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500" readonly required>
+                                    
+                                    <!-- Description -->
+                                    <textarea id="poi_desc" placeholder="Description (optional)" class="px-4 py-2 border rounded-lg col-span-2 focus:ring-2 focus:ring-blue-500" rows="3"></textarea>
+                                </div>
+                            </div>
+                            
+                            <!-- Modal Footer -->
+                            <div class="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-end gap-3">
+                                <button onclick="closeModal()" class="px-6 py-2.5 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 font-medium transition">
                                     Cancel
+                                </button>
+                                <button onclick="addPOI()" class="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium shadow-lg transition flex items-center gap-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                    Save POI
                                 </button>
                             </div>
                         </div>
@@ -196,8 +236,16 @@
                     </div>
                     
                     <!-- Add Document Form -->
-                    <div id="addDocForm" class="hidden mb-6 bg-gray-50 p-6 rounded-lg border border-gray-200">
-                        <h4 class="font-bold mb-4">Add Knowledge Document</h4>
+                    <div id="addDocForm" class="hidden mb-6 bg-gray-50 p-6 rounded-lg border-2 border-blue-200">
+                        <h4 class="font-bold mb-4 text-lg">Add Knowledge Document</h4>
+                        <div class="bg-green-50 border-l-4 border-green-500 p-3 mb-4 text-sm">
+                            <strong>✅ Auto-Embedding:</strong> When you save this document, the system will automatically:
+                            <ul class="list-disc ml-5 mt-1">
+                                <li>Generate 1024-dimensional vector embedding using Voyage AI</li>
+                                <li>Store in Supabase with pgvector for semantic search</li>
+                                <li>Make it instantly searchable via RAG queries</li>
+                            </ul>
+                        </div>
                         <div class="space-y-4">
                             <input type="text" id="doc_title" placeholder="Title (e.g., Admission Requirements)" class="w-full px-4 py-2 border rounded-lg">
                             <textarea id="doc_content" placeholder="Document content..." class="w-full px-4 py-2 border rounded-lg" rows="6"></textarea>
