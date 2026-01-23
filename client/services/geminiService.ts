@@ -6,7 +6,11 @@ export class CampusAIService {
   private ai: GoogleGenAI;
 
   constructor() {
-    this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || '' });
+    const apiKey = process.env.API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    if (!apiKey) {
+      console.warn("⚠️ Gemini API Key is missing! Please set NEXT_PUBLIC_GEMINI_API_KEY in your .env file.");
+    }
+    this.ai = new GoogleGenAI({ apiKey: apiKey || 'MISSING_KEY' });
   }
 
   async getCampusInfo(query: string): Promise<string> {
@@ -26,7 +30,7 @@ export class CampusAIService {
 
     try {
       const response = await this.ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-1.5-flash',
         contents: query,
         config: {
           systemInstruction: campusContext,

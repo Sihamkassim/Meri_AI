@@ -73,13 +73,13 @@ const MapDisplay: React.FC<MapDisplayProps> = ({ selectedNodeId }) => {
     [8.5360, 39.2640],
   ];
 
-  const filteredNodes = filter === 'all' 
-    ? CAMPUS_NODES 
+  const filteredNodes = filter === 'all'
+    ? CAMPUS_NODES
     : CAMPUS_NODES.filter(n => n.category === filter);
 
   // Simple route simulation between first two connected nodes
-  const activeRouteCoords: [number, number][] = selectedNodeId === 'library' 
-    ? [[8.5420, 39.2710], [8.5415, 39.2700], [8.5410, 39.2680], [8.5400, 39.2695]] 
+  const activeRouteCoords: [number, number][] = selectedNodeId === 'library'
+    ? [[8.5420, 39.2710], [8.5415, 39.2700], [8.5410, 39.2680], [8.5400, 39.2695]]
     : [];
 
   return (
@@ -96,9 +96,9 @@ const MapDisplay: React.FC<MapDisplayProps> = ({ selectedNodeId }) => {
             <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">PostGIS Linked | Active Stream</span>
           </div>
         </div>
-        
+
         <div className="flex gap-2 w-full sm:w-auto">
-          <select 
+          <select
             className="text-xs font-bold bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all text-slate-600"
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
@@ -109,8 +109,8 @@ const MapDisplay: React.FC<MapDisplayProps> = ({ selectedNodeId }) => {
             <option value="amenity">Amenities</option>
             <option value="gate">Entry Gates</option>
           </select>
-          
-          <select 
+
+          <select
             className="text-xs font-bold bg-emerald-50 border border-emerald-100 px-3 py-2 rounded-lg outline-none text-emerald-700"
             value={routeMode}
             onChange={(e) => setRouteMode(e.target.value as any)}
@@ -121,12 +121,12 @@ const MapDisplay: React.FC<MapDisplayProps> = ({ selectedNodeId }) => {
           </select>
         </div>
       </div>
-      
+
       {/* Map Container */}
       <div className="relative flex-grow min-h-[400px]">
-        <MapContainer 
-          center={[8.5402, 39.2693]} 
-          zoom={16} 
+        <MapContainer
+          center={[8.5402, 39.2693]}
+          zoom={16}
           minZoom={15}
           maxZoom={19}
           className="w-full h-full"
@@ -136,24 +136,24 @@ const MapDisplay: React.FC<MapDisplayProps> = ({ selectedNodeId }) => {
             attribution={mapTiles[mapType].attribution}
             url={mapTiles[mapType].url}
           />
-          
+
           {/* Campus Highlight */}
-          <Polygon 
-            positions={campusBoundary} 
-            pathOptions={{ 
-              fillColor: '#10b981', 
-              fillOpacity: 0.03, 
-              color: '#10b981', 
-              weight: 1, 
-              dashArray: '5, 10' 
-            }} 
+          <Polygon
+            positions={campusBoundary}
+            pathOptions={{
+              fillColor: '#10b981',
+              fillOpacity: 0.03,
+              color: '#10b981',
+              weight: 1,
+              dashArray: '5, 10'
+            }}
           />
 
           {/* Markers */}
           {filteredNodes.map(node => (
-            <Marker 
-              key={node.id} 
-              position={[node.y, node.x]} 
+            <Marker
+              key={node.id}
+              position={[node.y, node.x]}
               icon={icons[node.category] || icons.academic}
             >
               <Popup>
@@ -181,15 +181,15 @@ const MapDisplay: React.FC<MapDisplayProps> = ({ selectedNodeId }) => {
 
           {/* Active Route Visualization */}
           {activeRouteCoords.length > 0 && (
-            <Polyline 
-              positions={activeRouteCoords} 
-              pathOptions={{ 
-                color: '#059669', 
-                weight: 5, 
-                opacity: 0.8, 
-                lineCap: 'round', 
-                lineJoin: 'round' 
-              }} 
+            <Polyline
+              positions={activeRouteCoords}
+              pathOptions={{
+                color: '#059669',
+                weight: 5,
+                opacity: 0.8,
+                lineCap: 'round',
+                lineJoin: 'round'
+              }}
             />
           )}
 
@@ -197,21 +197,21 @@ const MapDisplay: React.FC<MapDisplayProps> = ({ selectedNodeId }) => {
         </MapContainer>
 
         {/* Map Type Selector */}
-        <div className="absolute top-6 right-6 z-[1000]">
+        <div className="absolute top-3 right-3 sm:top-6 sm:right-6 z-[1000]">
           <select
             value={mapType}
             onChange={(e) => setMapType(e.target.value as any)}
-            className="px-4 py-2.5 text-xs font-bold uppercase tracking-wider bg-white/95 backdrop-blur-md border border-slate-200 rounded-xl shadow-lg outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all text-slate-700 cursor-pointer hover:bg-white"
+            className="px-3 sm:px-4 py-2 sm:py-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-wider bg-white/95 backdrop-blur-md border border-slate-200 rounded-lg sm:rounded-xl shadow-lg outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all text-slate-700 cursor-pointer hover:bg-white"
           >
-            <option value="default">🗺️ Default Map</option>
-            <option value="street">🛣️ Street View</option>
+            <option value="default">🗺️ Default</option>
+            <option value="street">🛣️ Street</option>
             <option value="satellite">🛰️ Satellite</option>
             <option value="terrain">🏔️ Terrain</option>
           </select>
         </div>
 
         {/* Legend Overlay */}
-        <div className="absolute bottom-6 right-6 z-[1000] flex flex-col gap-2">
+        <div className="absolute bottom-3 right-3 sm:bottom-6 sm:right-6 z-[1000] flex flex-col gap-2 hidden sm:flex">
           <div className="bg-white/90 backdrop-blur-md border border-slate-100 p-4 rounded-2xl shadow-xl shadow-slate-200/20 max-w-[180px]">
             <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-3">Map Legend</h4>
             <div className="space-y-2">
@@ -225,14 +225,14 @@ const MapDisplay: React.FC<MapDisplayProps> = ({ selectedNodeId }) => {
 
         {/* Distance Indicator (Simplified) */}
         {selectedNodeId && (
-          <div className="absolute top-6 left-6 z-[1000]">
-            <div className="bg-slate-900 text-white px-4 py-2 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-left-4">
-              <div className="p-1.5 bg-emerald-500 rounded-lg">
-                <MapPin size={14} className="text-white" />
+          <div className="absolute top-3 left-3 sm:top-6 sm:left-6 z-[1000]">
+            <div className="bg-slate-900 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl shadow-2xl flex items-center gap-2 sm:gap-3 animate-in slide-in-from-left-4">
+              <div className="p-1 sm:p-1.5 bg-emerald-500 rounded-md sm:rounded-lg">
+                <MapPin size={12} className="text-white" />
               </div>
               <div>
-                <div className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">Distance from Gate</div>
-                <div className="text-sm font-bold">420m <span className="text-slate-400 font-normal">| 6 mins walk</span></div>
+                <div className="text-[8px] sm:text-[10px] font-bold uppercase tracking-widest text-emerald-400">Distance</div>
+                <div className="text-xs sm:text-sm font-bold">420m <span className="text-slate-400 font-normal hidden xs:inline">| 6 min</span></div>
               </div>
             </div>
           </div>
