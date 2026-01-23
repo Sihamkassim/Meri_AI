@@ -1,16 +1,28 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Sparkles, Terminal } from 'lucide-react';
-import { campusAI } from '../services/geminiService';
-import { ChatMessage } from '../types';
+import { Send, Bot, User, Sparkles, Terminal, BookOpen } from 'lucide-react';
+import { ragAssistant, RAGResponse } from '../services/geminiService';
+
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: number;
+  sources?: RAGResponse['sources'];
+  confidence?: number;
+}
 
 const AIAssistant: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: 'assistant', content: 'ASTU Infrastructure Intelligence active. How may I assist your campus navigation or information request?', timestamp: Date.now() }
+    { 
+      role: 'assistant', 
+      content: 'Welcome to the ASTU Knowledge Assistant! I can answer questions about Adama Science and Technology University - academics, facilities, history, and more. How can I help you?', 
+      timestamp: Date.now() 
+    }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showSources, setShowSources] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -24,14 +36,26 @@ const AIAssistant: React.FC = () => {
 
     const userMessage: ChatMessage = { role: 'user', content: input, timestamp: Date.now() };
     setMessages(prev => [...prev, userMessage]);
+    const question = input;
     setInput('');
     setIsLoading(true);
 
     try {
-      const response = await campusAI.getCampusInfo(input);
-      setMessages(prev => [...prev, { role: 'assistant', content: response, timestamp: Date.now() }]);
+      const response = await ragAssistant.ask(question);
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: response.answer, 
+        timestamp: Date.now(),
+        sources: response.sources,
+        confidence: response.confidence
+      }]);
     } catch (error) {
-      setMessages(prev => [...prev, { role: 'assistant', content: "An uplink error occurred. Please consult physical signage or university security.", timestamp: Date.now() }]);
+      console.error('[AIAssistant] Error:', error);
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: "I'm having trouble connecting to the knowledge base. Please try again in a moment.", 
+        timestamp: Date.now() 
+      }]);
     } finally {
       setIsLoading(false);
     }
@@ -42,14 +66,14 @@ const AIAssistant: React.FC = () => {
       {/* Terminal Header */}
       <div className="px-6 py-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-emerald-500/10 rounded-lg flex items-center justify-center">
-            <Terminal size={18} className="text-emerald-500" />
+          <div className="w-8 h-8 bg-blue-500/10 rounded-lg flex items-center justify-center">
+            <BookOpen size={18} className="text-blue-500" />
           </div>
           <div>
-            <h2 className="text-sm font-bold text-white tracking-wide">AI Guidance Module</h2>
+            <h2 className="text-sm font-bold text-white tracking-wide">ASTU Knowledge Assistant</h2>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span className="text-[10px] text-emerald-500 font-bold uppercase tracking-widest">System Link Active</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+              <span className="text-[10px] text-blue-500 font-bold uppercase tracking-widest">RAG Engine Active</span>
             </div>
           </div>
         </div>
@@ -60,14 +84,53 @@ const AIAssistant: React.FC = () => {
         {messages.map((msg, i) => (
           <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in duration-300`}>
             <div className={`flex gap-3 max-w-[90%] ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-              <div className={`mt-1 p-2 rounded-xl flex-shrink-0 h-fit ${msg.role === 'user' ? 'bg-slate-800 text-slate-400' : 'bg-emerald-500 text-white'}`}>
+              <div className={`mt-1 p-2 rounded-xl flex-shrink-0 h-fit ${msg.role === 'user' ? 'bg-slate-800 text-slate-400' : 'bg-blue-500 text-white'}`}>
                 {msg.role === 'user' ? <User size={14} /> : <Bot size={14} />}
               </div>
-              <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${msg.role === 'user'
-                ? 'bg-slate-800 text-white rounded-tr-none border border-slate-700'
-                : 'bg-slate-900 text-slate-300 rounded-tl-none border border-slate-800 shadow-lg'
-                }`}>
-                {msg.content}
+              <div className="flex flex-col gap-2">
+                <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${msg.role === 'user'
+                  ? 'bg-slate-800 text-white rounded-tr-none border border-slate-700'
+                  : 'bg-slate-900 text-slate-300 rounded-tl-none border border-slate-800 shadow-lg'
+                  }`}>
+                  {msg.content}
+                </div>
+                
+                {/* Sources toggle for assistant messages */}
+                {msg.role === 'assistant' && msg.sources && msg.sources.length > 0 && (
+                  <div className="ml-1">
+                    <button 
+                      onClick={() => setShowSources(showSources === i ? null : i)}
+                      className="text-[10px] text-blue-400 hover:text-blue-300 font-medium flex items-center gap-1"
+                    >
+                      <BookOpen size={10} />
+                      {showSources === i ? 'Hide' : 'Show'} {msg.sources.length} source{msg.sources.length > 1 ? 's' : ''}
+                      {msg.confidence && (
+                        <span className="ml-2 text-slate-500">
+                          ({Math.round(msg.confidence * 100)}% confidence)
+                        </span>
+                      )}
+                    </button>
+                    
+                    {showSources === i && (
+                      <div className="mt-2 space-y-2">
+                        {msg.sources.map((source, idx) => (
+                          <div key={idx} className="px-3 py-2 bg-slate-800/50 rounded-lg border border-slate-700/50 text-xs">
+                            {source.title && (
+                              <div className="font-medium text-blue-400 mb-1">{source.title}</div>
+                            )}
+                            <div className="text-slate-400 line-clamp-2">{source.content}</div>
+                            {source.url && (
+                              <a href={source.url} target="_blank" rel="noopener noreferrer" 
+                                 className="text-blue-500 hover:underline mt-1 inline-block">
+                                View source →
+                              </a>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -76,11 +139,11 @@ const AIAssistant: React.FC = () => {
           <div className="flex justify-start">
             <div className="bg-slate-900 border border-slate-800 px-4 py-3 rounded-2xl flex items-center gap-3">
               <div className="flex gap-1">
-                <span className="w-1 h-1 bg-emerald-500 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-                <span className="w-1 h-1 bg-emerald-500 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-                <span className="w-1 h-1 bg-emerald-500 rounded-full animate-bounce"></span>
+                <span className="w-1 h-1 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                <span className="w-1 h-1 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                <span className="w-1 h-1 bg-blue-500 rounded-full animate-bounce"></span>
               </div>
-              <span className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">Querying Campus Graph...</span>
+              <span className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">Searching Knowledge Base...</span>
             </div>
           </div>
         )}
@@ -93,17 +156,20 @@ const AIAssistant: React.FC = () => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Ask for directions or building info..."
-            className="flex-grow px-5 py-3.5 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-sm text-white placeholder:text-slate-600"
+            placeholder="Ask about ASTU academics, facilities, history..."
+            className="flex-grow px-5 py-3.5 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm text-white placeholder:text-slate-600"
           />
           <button
             onClick={handleSend}
             disabled={!input.trim() || isLoading}
-            className="p-3.5 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-90 shadow-lg shadow-emerald-500/20"
+            className="p-3.5 bg-blue-600 text-white rounded-2xl hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-90 shadow-lg shadow-blue-500/20"
           >
             <Send size={20} />
           </button>
         </div>
+        <p className="text-[10px] text-slate-600 mt-2 text-center">
+          Powered by RAG • Answers based on official ASTU documents
+        </p>
       </div>
     </div>
   );

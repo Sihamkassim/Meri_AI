@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     
     # Voyage AI Configuration (for RAG embeddings)
     voyage_api_key: Optional[str] = None
+    voyage_poi_api_key: Optional[str] = None
     
     # Server Configuration
     port: int = 4000

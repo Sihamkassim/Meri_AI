@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import dynamic from "next/dynamic";
 import Navbar from "../components/Navbar";
 import Hero from "../components/Hero";
 import MapWrapper from "../components/MapWrapper";
@@ -10,6 +11,11 @@ import InstallPWA from "../components/InstallPWA";
 import { AppRoute } from "../types";
 import { CAMPUS_NODES } from "../constants";
 import { useAppStore } from "../store/useAppStore";
+
+// Dynamically import MapChatbot to avoid SSR issues
+const MapChatbot = dynamic(() => import("../components/MapChatbot"), {
+  ssr: false,
+});
 
 const HOME_BG_IMAGE_URL = "/astu.jpg";
 
@@ -31,17 +37,14 @@ export default function Home() {
       case AppRoute.MAP:
         return (
           <main className="flex-grow pt-28 max-w-7xl mx-auto px-4 lg:px-8 pb-14 w-full animate-in slide-in-from-bottom-4 duration-500">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-              <div className="lg:col-span-8 h-[520px] lg:h-[720px] rounded-[32px] overflow-hidden bg-white/60 backdrop-blur-xl border border-white/40 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.25)]">
-                <MapWrapper selectedNodeId={selectedDestId} />
-              </div>
-
-              <div className="lg:col-span-4">
-                <div className="h-full rounded-[32px] bg-white/70 backdrop-blur-xl border border-white/40 shadow-lg">
-                  <AIAssistant />
-                </div>
-              </div>
+            <div className="h-[520px] lg:h-[720px] rounded-[32px] overflow-hidden bg-white/60 backdrop-blur-xl border border-white/40 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.25)]">
+              <MapWrapper selectedNodeId={selectedDestId} />
             </div>
+            {/* Floating MapChatbot for navigation queries (LangGraph) */}
+            <MapChatbot 
+              selectedNodeName={selectedDestId ? CAMPUS_NODES.find(n => n.id === selectedDestId)?.name : undefined}
+              mode="walking"
+            />
           </main>
         );
 
