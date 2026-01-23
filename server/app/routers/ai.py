@@ -134,22 +134,22 @@ async def ai_query_stream_get(
                 # Send reasoning updates
                 if event["type"] == "reasoning":
                     for step in event["data"]:
-                        yield f"event: reasoning\ndata: {json.dumps({'step': step})}\n\n"
+                        yield f"data: {json.dumps({'type': 'reasoning', 'content': step})}\n\n"
                 
                 # Send final answer
                 elif event["type"] == "answer":
-                    yield f"event: answer\ndata: {json.dumps({'answer': event['data'], 'sources': event.get('sources', [])})}\n\n"
+                    yield f"data: {json.dumps({'type': 'answer', 'content': event['data'], 'sources': event.get('sources', [])})}\n\n"
                 
                 # Send errors
                 elif event["type"] == "error":
-                    yield f"event: error\ndata: {json.dumps({'error': event['data']})}\n\n"
+                    yield f"data: {json.dumps({'type': 'error', 'content': event['data']})}\n\n"
             
             # Signal completion
-            yield f"event: done\ndata: {json.dumps({'status': 'complete'})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
             
         except Exception as e:
             logger.error(f"[AI Query Stream GET] Error: {e}")
-            yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
+            yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
     
     return StreamingResponse(
         generate(),
@@ -192,22 +192,22 @@ async def ai_query_stream_post(
                 # Send reasoning updates
                 if event["type"] == "reasoning":
                     for step in event["data"]:
-                        yield f"event: reasoning\ndata: {json.dumps({'step': step})}\n\n"
+                        yield f"data: {json.dumps({'type': 'reasoning', 'content': step})}\n\n"
                 
                 # Send final answer
                 elif event["type"] == "answer":
-                    yield f"event: answer\ndata: {json.dumps({'answer': event['data'], 'sources': event.get('sources', [])})}\n\n"
+                    yield f"data: {json.dumps({'type': 'answer', 'content': event['data'], 'sources': event.get('sources', [])})}\n\n"
                 
                 # Send errors
                 elif event["type"] == "error":
-                    yield f"event: error\ndata: {json.dumps({'error': event['data']})}\n\n"
+                    yield f"data: {json.dumps({'type': 'error', 'content': event['data']})}\n\n"
             
             # Signal completion
-            yield f"event: done\ndata: {json.dumps({'status': 'complete'})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
             
         except Exception as e:
             logger.error(f"[AI Query Stream POST] Error: {e}")
-            yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
+            yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
     
     return StreamingResponse(
         generate(),
