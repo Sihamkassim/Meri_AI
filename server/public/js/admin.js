@@ -2,6 +2,7 @@
 const API_BASE = 'http://localhost:4000';
 let map = null;
 let poiMap = null;
+let testRouteMap = null;  // NEW: Dedicated map for Test AI route visualization
 let markers = [];
 
 // Global state
@@ -500,11 +501,35 @@ async function loadDocuments() {
     }
 }
 
-// Test AI System
+// Detect GPS Location
+function detectLocation() {
+    if (!navigator.geolocation) {
+        showNotification('Geolocation not supported by your browser', 'warning');
+        return;
+    }
+    
+    showNotification('Detecting your location...', 'info');
+    
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            document.getElementById('test_latitude').value = position.coords.latitude.toFixed(6);
+            document.getElementById('test_longitude').value = position.coords.longitude.toFixed(6);
+            showNotification('Location detected!', 'success');
+        },
+        (error) => {
+            showNotification('Could not get location: ' + error.message, 'error');
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+    );
+}
+
+// Test AI System with SSE Streaming
 async function testAI() {
     const query = document.getElementById('test_query').value;
     const mode = document.getElementById('test_mode').value;
     const urgency = document.getElementById('test_urgency').value;
+    const latitude = document.getElementById('test_latitude').value;
+    const longitude = document.getElementById('test_longitude').value;
     
     if (!query) {
         showNotification('Please enter a question to test', 'warning');
@@ -515,39 +540,209 @@ async function testAI() {
     const answerDiv = document.getElementById('testAnswer');
     const intentDiv = document.getElementById('testIntent');
     const reasoningDiv = document.getElementById('testReasoning');
+    const routeVizDiv = document.getElementById('testRouteViz');
     
-    // Show loading
-    answerDiv.innerHTML = '<p class="text-gray-500">🤖 Thinking...</p>';
+    // Clear previous results
+    answerDiv.innerHTML = '<p class="text-gray-500">⏳ Waiting for response...</p>';
+    reasoningDiv.innerHTML = '<div class="text-gray-500">🔄 Connecting to AI stream...</div>';
+    intentDiv.innerHTML = '';
+    routeVizDiv.classList.add('hidden');
     resultDiv.classList.remove('hidden');
     
+    // Build query parameters
+    const params = new URLSearchParams({
+        query: query,
+        mode: mode,
+        urgency: urgency
+    });
+    
+    if (latitude) params.append('latitude', latitude);
+    if (longitude) params.append('longitude', longitude);
+    
     try {
-        const response = await fetch(`${API_BASE}/api/ai/query`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                query: query,
-                mode: mode,
-                urgency: urgency
-            })
-        });
+        // Use SSE streaming endpoint
+        const eventSource = new EventSource(`${API_BASE}/api/ai/query/stream?${params.toString()}`);
         
-        const data = await response.json();
+        let reasoningSteps = [];
+        let finalAnswer = '';
+        let finalIntent = '';
+        let finalConfidence = '';
+        let sources = [];
+        let startCoords = null;
+        let endCoords = null;
         
-        // Display results
-        answerDiv.innerHTML = `<div class="whitespace-pre-wrap">${data.answer}</div>`;
-        intentDiv.innerHTML = `<strong>Intent:</strong> ${data.intent} | <strong>Confidence:</strong> ${data.confidence}`;
+        eventSource.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                
+                if (data.type === 'reasoning') {
+                    // Show reasoning steps in real-time
+                    reasoningSteps.push(data.content);
+                    reasoningDiv.innerHTML = `
+                        <div class="space-y-1">
+                            ${reasoningSteps.map((step, i) => `
+                                <div class="flex items-start gap-2">
+                                    <span class="text-blue-600 font-bold">${i + 1}.</span>
+                                    <span>${step}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                    // Auto-scroll to bottom
+                    reasoningDiv.scrollTop = reasoningDiv.scrollHeight;
+                }
+                else if (data.type === 'answer') {
+                    // Final answer received
+                    const result = data.content;
+                    finalAnswer = result.final_answer || result.answer || 'No answer generated';
+                    finalIntent = result.intent || 'UNKNOWN';
+                    finalConfidence = result.rag_confidence || result.geo_confidence || 'medium';
+                    sources = result.sources_used || [];
+                    
+                    // Extract coordinates if navigation query
+                    if (result.start_coordinates) {
+                        startCoords = result.start_coordinates;
+                        endCoords = result.end_coordinates;
+                    }
+                    
+                    // Display answer
+                    let answerHTML = `<div class="whitespace-pre-wrap">${finalAnswer}</div>`;
+                    
+                    if (sources.length > 0) {
+                        answerHTML += `
+                            <div class="mt-4 p-3 bg-gray-50 rounded border">
+                                <strong class="text-sm">📚 Sources:</strong>
+                                <ul class="list-disc ml-5 mt-2 text-sm">
+                                    ${sources.map(s => `<li>${s}</li>`).join('')}
+                                </ul>
+                            </div>
+                        `;
+                    }
+                    
+                    answerDiv.innerHTML = answerHTML;
+                    intentDiv.innerHTML = `
+                        <strong>Intent:</strong> <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded">${finalIntent}</span> 
+                        <strong class="ml-4">Confidence:</strong> <span class="px-2 py-1 bg-green-100 text-green-800 rounded">${finalConfidence}</span>
+                    `;
+                    
+                    // Show route visualization if navigation query
+                    if (startCoords && endCoords) {
+                        visualizeRoute(startCoords, endCoords, result.distance_estimate);
+                    }
+                }
+                else if (data.type === 'done') {
+                    eventSource.close();
+                    showNotification('AI response complete! ✅', 'success');
+                }
+                else if (data.type === 'error') {
+                    eventSource.close();
+                    answerDiv.innerHTML = `<p class="text-red-600">❌ Error: ${data.content}</p>`;
+                    showNotification('AI error occurred', 'error');
+                }
+            } catch (e) {
+                console.error('Error parsing SSE data:', e, event.data);
+            }
+        };
         
-        if (data.reasoning_steps && data.reasoning_steps.length > 0) {
-            reasoningDiv.innerHTML = `
-                <strong>Reasoning Steps:</strong><br>
-                ${data.reasoning_steps.map((step, i) => `${i + 1}. ${step}`).join('<br>')}
-            `;
-        }
+        eventSource.onerror = (error) => {
+            eventSource.close();
+            console.error('SSE connection error:', error);
+            answerDiv.innerHTML = `<p class="text-red-600">❌ Connection error. Please try again.</p>`;
+            reasoningDiv.innerHTML = `<div class="text-red-500">Connection lost. Check if server is running.</div>`;
+            showNotification('Connection error', 'error');
+        };
         
     } catch (error) {
         console.error('AI test failed:', error);
-        answerDiv.innerHTML = `<p class="text-red-600">Error: ${error.message}</p>`;
+        answerDiv.innerHTML = `<p class="text-red-600">❌ Error: ${error.message}</p>`;
+        showNotification('Request failed', 'error');
     }
+}
+
+// Visualize Route on Map
+function visualizeRoute(startCoords, endCoords, distance) {
+    const routeVizDiv = document.getElementById('testRouteViz');
+    const distanceSpan = document.getElementById('routeDistance');
+    const timeSpan = document.getElementById('routeTime');
+    
+    // Calculate estimated time (assume 5 km/h walking speed)
+    const distanceKm = parseFloat(distance) || 0;
+    const timeMinutes = Math.ceil((distanceKm / 5) * 60);
+    
+    distanceSpan.textContent = `Distance: ${distance}`;
+    timeSpan.textContent = `Est. Time: ${timeMinutes} min`;
+    routeVizDiv.classList.remove('hidden');
+    
+    // Initialize test route map if not already created
+    if (!testRouteMap) {
+        testRouteMap = L.map('testRouteMap', {
+            center: [8.5569, 39.2911],
+            zoom: 16,
+            zoomControl: true
+        });
+        
+        // Add satellite + labels layer
+        L.layerGroup([
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles © Esri',
+                maxZoom: 19
+            }),
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}.png', {
+                attribution: '© CARTO',
+                maxZoom: 19
+            })
+        ]).addTo(testRouteMap);
+        
+        // Force map to recalculate size
+        setTimeout(() => testRouteMap.invalidateSize(), 100);
+    }
+    
+    // Clear existing route layers on test route map
+    testRouteMap.eachLayer((layer) => {
+        if (layer instanceof L.Marker || layer instanceof L.Polyline) {
+            testRouteMap.removeLayer(layer);
+        }
+    });
+    
+    // Add start marker
+    L.marker([startCoords.lat, startCoords.lon], {
+        icon: L.divIcon({
+            className: 'custom-marker',
+            html: `<div style="background: #10b981; color: white; padding: 8px 12px; border-radius: 8px; font-weight: bold; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">🚩 ${startCoords.name}</div>`,
+            iconSize: [200, 40],
+            iconAnchor: [100, 40]
+        })
+    }).addTo(testRouteMap);
+    
+    // Add end marker
+    L.marker([endCoords.lat, endCoords.lon], {
+        icon: L.divIcon({
+            className: 'custom-marker',
+            html: `<div style="background: #ef4444; color: white; padding: 8px 12px; border-radius: 8px; font-weight: bold; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">🎯 ${endCoords.name}</div>`,
+            iconSize: [200, 40],
+            iconAnchor: [100, 40]
+        })
+    }).addTo(testRouteMap);
+    
+    // Draw BLUE route line between points (like Google Maps)
+    L.polyline([
+        [startCoords.lat, startCoords.lon],
+        [endCoords.lat, endCoords.lon]
+    ], {
+        color: '#4285F4',  // Google Maps blue
+        weight: 6,
+        opacity: 0.8,
+        smoothFactor: 1
+    }).addTo(testRouteMap);
+    
+    // Fit map to show route with padding
+    const bounds = L.latLngBounds([
+        [startCoords.lat, startCoords.lon],
+        [endCoords.lat, endCoords.lon]
+    ]);
+    testRouteMap.fitBounds(bounds, { padding: [80, 80] });
+    
+    showNotification('Route visualized on map! 🗺️', 'success');
 }
 
 // Test OSM Route

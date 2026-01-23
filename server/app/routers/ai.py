@@ -2,7 +2,7 @@
 Unified AI Router using LangGraph workflow
 Handles all user queries through intelligent 7-node system
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from typing import Optional, AsyncGenerator
 from pydantic import BaseModel
@@ -146,6 +146,55 @@ async def ai_query_stream(
             logger.error(f"[AI Query Stream] Error: {e}")
             yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
     
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        }
+    )
+
+
+@router.get(
+    "/query/stream",
+    summary="Streaming AI Query (GET)",
+    description="GET-friendly variant for SSE clients that send query parameters instead of JSON bodies",
+)
+async def ai_query_stream_get(
+    query: str = Query(..., description="User query"),
+    latitude: Optional[float] = Query(None, description="User latitude"),
+    longitude: Optional[float] = Query(None, description="User longitude"),
+    mode: Optional[str] = Query("walking", description="Travel mode"),
+    urgency: Optional[str] = Query("normal", description="Urgency level"),
+    graph: AstuRouteGraph = Depends(get_graph)
+) -> StreamingResponse:
+    """GET wrapper that mirrors ai_query_stream for clients using query params."""
+    logger.info(f"[AI Query Stream GET] Received: {query[:100]}...")
+
+    async def generate() -> AsyncGenerator[str, None]:
+        try:
+            async for event in graph.stream_execute({
+                "user_query": query,
+                "latitude": latitude,
+                "longitude": longitude,
+                "mode": mode,
+                "urgency": urgency
+            }):
+                if event["type"] == "reasoning":
+                    for step in event["data"]:
+                        yield f"data: {json.dumps({'type': 'reasoning', 'content': step})}\n\n"
+                elif event["type"] == "answer":
+                    yield f"data: {json.dumps({'type': 'answer', 'content': event['data'], 'sources': event.get('sources', [])})}\n\n"
+                elif event["type"] == "error":
+                    yield f"data: {json.dumps({'type': 'error', 'content': event['data']})}\n\n"
+
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+        except Exception as e:
+            logger.error(f"[AI Query Stream GET] Error: {e}")
+            yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
+
     return StreamingResponse(
         generate(),
         media_type="text/event-stream",

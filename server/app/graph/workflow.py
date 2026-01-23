@@ -49,12 +49,19 @@ class AstuRouteGraph:
         # Create graph
         workflow = StateGraph(GraphState)
         
+        # Wrapper functions for async nodes
+        async def rag_retriever_wrapper(state):
+            return await rag_retriever_node(state, self.vector_service)
+
+        async def geo_reasoning_wrapper(state):
+            return await geo_reasoning_node(state, self.routing_service, self.vector_service)
+        
         # Add nodes
         workflow.add_node("user_input", user_input_node)
         workflow.add_node("intent_classifier", intent_classifier_node)
-        workflow.add_node("rag_retriever", lambda state: rag_retriever_node(state, self.vector_service))
+        workflow.add_node("rag_retriever", rag_retriever_wrapper)
         workflow.add_node("rag_generator", rag_generator_node)
-        workflow.add_node("geo_reasoning", lambda state: geo_reasoning_node(state, self.routing_service))
+        workflow.add_node("geo_reasoning", geo_reasoning_wrapper)
         workflow.add_node("response_composer", response_composer_node)
         
         # Define edges
@@ -151,10 +158,26 @@ class AstuRouteGraph:
                     
                     # Yield final answer when available
                     if "final_answer" in state_update:
+                        # Construct the full answer object for the frontend
+                        # If the node returned a dictionary with all the keys (like the updated response_composer),
+                        # we should pass that through.
+                        answer_payload = {
+                            "final_answer": state_update.get("final_answer"),
+                            "intent": state_update.get("intent"),
+                            "start_coordinates": state_update.get("start_coordinates"),
+                            "end_coordinates": state_update.get("end_coordinates"),
+                            "distance_estimate": state_update.get("distance_estimate"),
+                            "rag_confidence": state_update.get("rag_confidence"),
+                            "geo_confidence": state_update.get("geo_confidence"),
+                            "sources_used": state_update.get("sources_used", []),
+                            # Fallback/Aliases for robustness
+                            "answer": state_update.get("final_answer") 
+                        }
+                        
                         yield {
                             "type": "answer",
                             "node": node_name,
-                            "data": state_update["final_answer"],
+                            "data": answer_payload,
                             "sources": state_update.get("sources_used", [])
                         }
                     

@@ -24,8 +24,9 @@ class Settings(BaseSettings):
     ai_stream_timeout: int = 30
     embedding_model: str = "text-embedding-004"
     
-    # Voyage AI Configuration (for RAG embeddings)
-    voyage_api_key: Optional[str] = None
+    # Voyage AI Configuration (Separate keys for different use cases)
+    voyage_api_key: Optional[str] = None  # For document embeddings (RAG)
+    voyage_poi_api_key: Optional[str] = None  # For POI semantic search
     
     # Server Configuration
     port: int = 4000

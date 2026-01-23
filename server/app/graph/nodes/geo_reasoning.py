@@ -1,6 +1,6 @@
 """
 Node 6: Geo Reasoning Node
-Handles campus navigation and nearby service discovery
+Handles campus navigation and nearby service discovery with semantic POI matching
 """
 import json
 from typing import Dict, Any
@@ -12,14 +12,21 @@ from app.graph.prompts.templates import (
     GEO_REASONING_USER,
     MODEL_CONFIGS
 )
-from app.services.interfaces import IRoutingService
+from app.services.interfaces import IRoutingService, IVectorService
+from app.graph.nodes.geo_helpers import (
+    extract_locations_from_query,
+    haversine_distance,
+    calculate_bearing,
+    bearing_to_direction
+)
 from app.core.logging_config import logger
 from config import settings
 
 
 async def geo_reasoning_node(
     state: GraphState,
-    routing_service: IRoutingService
+    routing_service: IRoutingService,
+    vector_service: IVectorService  # NEW: for semantic POI search
 ) -> Dict[str, Any]:
     """
     Handle campus navigation and nearby service discovery
@@ -27,6 +34,7 @@ async def geo_reasoning_node(
     Args:
         state: Current graph state
         routing_service: Routing service for geospatial queries
+        vector_service: Vector service for semantic POI search
         
     Returns:
         Updated state with geospatial reasoning
@@ -38,8 +46,8 @@ async def geo_reasoning_node(
     if intent == "NEARBY_SERVICE":
         return await _handle_nearby_service(state, routing_service)
     
-    # Handle NAVIGATION with LLM reasoning
-    return await _handle_navigation(state, routing_service)
+    # Handle NAVIGATION with semantic POI matching
+    return await _handle_navigation(state, routing_service, vector_service)
 
 
 async def _handle_nearby_service(
@@ -109,77 +117,151 @@ async def _handle_nearby_service(
 
 async def _handle_navigation(
     state: GraphState,
-    routing_service: IRoutingService
+    routing_service: IRoutingService,
+    vector_service: IVectorService  # NEW
 ) -> Dict[str, Any]:
-    """Handle campus navigation with AI reasoning"""
-    logger.info("[GeoReasoningNode] Calculating campus route...")
+    """
+    Handle campus navigation with semantic POI matching (NO LLM HALLUCINATION)
     
-    # Initialize LLM with moderate temperature for stable routing
-    llm = ChatGoogleGenerativeAI(
-        model=MODEL_CONFIGS["geo_reasoning"]["model"],
-        temperature=MODEL_CONFIGS["geo_reasoning"]["temperature"],
-        google_api_key=settings.ai_api_key
-    )
-    
-    # Prepare messages
-    user_prompt = GEO_REASONING_USER.format(
-        lat=state.get("latitude", 8.5569),
-        lng=state.get("longitude", 39.2911),
-        user_query=state["user_query"],
-        mode=state.get("mode", "walking"),
-        urgency=state.get("urgency", "normal")
-    )
-    messages = [
-        SystemMessage(content=GEO_REASONING_SYSTEM),
-        HumanMessage(content=user_prompt)
-    ]
+    Flow:
+    1. Extract locations from query using semantic search
+    2. Calculate actual route between POIs
+    3. Generate human-readable directions
+    """
+    logger.info("[GeoReasoningNode] Using semantic POI matching for navigation...")
     
     try:
-        # Get AI reasoning
-        response = await llm.ainvoke(messages)
-        content = response.content
+        # Extract start and end locations using semantic search
+        start_poi, end_poi = await extract_locations_from_query(
+            query=state["user_query"],
+            vector_service=vector_service,
+            current_lat=state.get("latitude"),
+            current_lon=state.get("longitude")
+        )
         
-        # Parse JSON response
-        if isinstance(content, str):
-            content = content.strip()
-            if content.startswith("```json"):
-                content = content[7:]
-            if content.startswith("```"):
-                content = content[3:]
-            if content.endswith("```"):
-                content = content[:-3]
-            content = content.strip()
-            
-            result = json.loads(content)
-        else:
-            result = content
-        
-        # Validate with Pydantic
-        geo_response = GeoResponse(**result)
-        
-        logger.info(f"[GeoReasoningNode] Generated route with {geo_response.confidence} confidence")
-        
+        # Update reasoning stream
         reasoning_stream = state.get("reasoning_stream", [])
-        reasoning_stream.append("Calculated campus route")
-        if state.get("urgency") == "exam":
-            reasoning_stream.append("Applied exam urgency mode")
-        reasoning_stream.append(geo_response.route_summary)
+        reasoning_stream.append("Extracting locations from query using semantic search...")
         
+        # If no destination found, return error
+        if not end_poi:
+            return {
+                "route_summary": "Could not identify destination location in query",
+                "route_steps": [
+                    "Please specify a campus destination (e.g., 'library', 'lab', 'block 8')",
+                    "Try: 'take me to the library' or 'where is the computer lab?'"
+                ],
+                "geo_reasoning": ["No destination POI found in query"],
+                "geo_confidence": "low",
+                "reasoning_stream": reasoning_stream + ["❌ No destination identified"]
+            }
+        
+        reasoning_stream.append(f"✅ Destination: {end_poi.name}")
+        
+        # If no start location, use current GPS or default to ASTU entrance
+        if not start_poi:
+            current_lat = state.get("latitude", 8.5569)
+            current_lon = state.get("longitude", 39.2911)
+            
+            # Try to find nearest POI to current location
+            from app.graph.nodes.geo_helpers import find_nearest_poi
+            start_poi = await find_nearest_poi(vector_service, current_lat, current_lon)
+            
+            if start_poi:
+                reasoning_stream.append(f"✅ Start: {start_poi.name} (nearest to your location)")
+            else:
+                # Create a virtual "Current Location" POI
+                from app.services.interfaces import POI
+                start_poi = POI(
+                    id=0,
+                    name="Your Current Location",
+                    category="virtual",
+                    latitude=current_lat,
+                    longitude=current_lon,
+                    description="Your GPS coordinates"
+                )
+                reasoning_stream.append(f"✅ Start: Your current GPS location")
+        else:
+            reasoning_stream.append(f"✅ Start: {start_poi.name}")
+        
+        # Calculate distance and direction
+        distance_km = haversine_distance(
+            start_poi.latitude, start_poi.longitude,
+            end_poi.latitude, end_poi.longitude
+        )
+        
+        bearing = calculate_bearing(
+            start_poi.latitude, start_poi.longitude,
+            end_poi.latitude, end_poi.longitude
+        )
+        direction = bearing_to_direction(bearing)
+        
+        # Calculate walking time
+        walking_speed_kmh = 5.0  # Average walking speed
+        time_minutes = int((distance_km / walking_speed_kmh) * 60)
+        
+        # Adjust for urgency
+        urgency = state.get("urgency", "normal")
+        if urgency == "exam":
+            time_minutes = int(time_minutes * 0.8)  # 20% faster
+            reasoning_stream.append("⚡ Exam mode: Optimized for speed")
+        elif urgency == "accessibility":
+            time_minutes = int(time_minutes * 1.3)  # 30% slower
+            reasoning_stream.append("♿ Accessibility mode: Easier routes")
+        
+        time_minutes = max(1, time_minutes)  # At least 1 minute
+        
+        # Generate route steps
+        route_steps = [
+            f"Start at {start_poi.name}",
+            f"Head {direction} for {int(distance_km * 1000)}m",
+            f"Arrive at {end_poi.name}"
+        ]
+        
+        if distance_km < 0.1:  # Less than 100m
+            route_steps = [
+                f"{end_poi.name} is very close to {start_poi.name}",
+                f"Walk {int(distance_km * 1000)}m {direction}"
+            ]
+        
+        # Create summary
+        summary = f"Route from {start_poi.name} to {end_poi.name}: {distance_km:.2f}km, ~{time_minutes} min walk"
+        reasoning_stream.append(f"📍 Distance: {distance_km:.2f}km")
+        reasoning_stream.append(f"⏱️ Estimated time: {time_minutes} minutes")
+        
+        # Return structured response with coordinates for map visualization
         return {
-            "route_summary": geo_response.route_summary,
-            "distance_estimate": geo_response.distance_estimate,
-            "route_steps": geo_response.route_steps,
-            "geo_reasoning": geo_response.reasoning,
-            "geo_confidence": geo_response.confidence,
-            "reasoning_stream": reasoning_stream
+            "route_summary": summary,
+            "distance_estimate": f"{distance_km:.2f}km",
+            "route_steps": route_steps,
+            "geo_reasoning": [
+                f"Matched start location to: {start_poi.name}",
+                f"Matched destination to: {end_poi.name}",
+                f"Calculated haversine distance: {distance_km:.2f}km",
+                f"Direction: {direction} (bearing: {bearing:.0f}°)",
+                f"Applied urgency mode: {urgency}"
+            ],
+            "geo_confidence": "high",
+            "reasoning_stream": reasoning_stream,
+            # NEW: Add coordinates for map visualization
+            "start_coordinates": {
+                "lat": start_poi.latitude,
+                "lon": start_poi.longitude,
+                "name": start_poi.name
+            },
+            "end_coordinates": {
+                "lat": end_poi.latitude,
+                "lon": end_poi.longitude,
+                "name": end_poi.name
+            }
         }
         
     except Exception as e:
         logger.error(f"[GeoReasoningNode] Navigation error: {e}")
         return {
             "route_summary": "Unable to calculate route",
-            "route_steps": ["Error occurred while calculating route"],
-            "geo_reasoning": [str(e)],
+            "route_steps": [str(e)],
+            "geo_reasoning": [f"Error: {str(e)}"],
             "geo_confidence": "low",
             "error": f"Navigation failed: {str(e)}"
         }

@@ -53,11 +53,22 @@ async def response_composer_node(state: GraphState) -> Dict[str, Any]:
     
     logger.info(f"[ResponseComposerNode] Composed {intent} response")
     
-    return {
+    # Pass through geospatial data for frontend visualization
+    response_data = {
         "final_answer": final_answer,
         "sources_used": sources,
-        "reasoning_stream": reasoning_stream
+        "reasoning_stream": reasoning_stream,
+        # Pass through vital metadata for frontend
+        "intent": intent,
+        "start_coordinates": state.get("start_coordinates"),
+        "end_coordinates": state.get("end_coordinates"),
+        "distance_estimate": state.get("distance_estimate"),
+        # Confidence metrics
+        "rag_confidence": state.get("rag_confidence"),
+        "geo_confidence": state.get("geo_confidence")
     }
+    
+    return response_data
 
 
 def _compose_navigation_response(state: GraphState) -> str:
