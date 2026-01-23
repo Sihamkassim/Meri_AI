@@ -8,11 +8,11 @@ __pycache__/
 # Virtual environment (project-local)
 venv/
 .venv/
-
+/public
 # Environment files
 .env
 .env.*
-
+/public
 # Pytest cache
 .pytest_cache/
 
