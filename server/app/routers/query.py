@@ -7,7 +7,6 @@ from fastapi.responses import StreamingResponse
 from typing import AsyncGenerator
 import json
 
-from app.core.container import Container
 from app.core.exceptions import AIServiceError, DatabaseError
 from app.routers.schemas import QueryRequest, QueryResponse, ErrorResponse
 from app.services.interfaces import IRAGService
@@ -18,8 +17,8 @@ router = APIRouter(prefix="/api/query", tags=["query"])
 
 def get_rag_service() -> IRAGService:
     """Dependency injection for RAG service"""
-    container = Container()
-    return container.rag_service()
+    from app.core.container import container
+    return container.get_rag_service()
 
 
 @router.post(

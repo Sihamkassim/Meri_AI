@@ -125,3 +125,17 @@ class ICacheService(ABC):
     async def exists(self, key: str) -> bool:
         """Check if key exists"""
         pass
+
+
+class IRAGService(ABC):
+    """Abstract RAG (Retrieval-Augmented Generation) service"""
+    
+    @abstractmethod
+    async def answer_question(self, question: str, max_sources: int = 5) -> Dict[str, Any]:
+        """Answer question using RAG"""
+        pass
+    
+    @abstractmethod
+    async def answer_question_stream(self, question: str, max_sources: int = 5):
+        """Stream answer generation"""
+        pass

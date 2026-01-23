@@ -10,6 +10,8 @@ from app.services.cache_service import RedisCacheService, MemoryCacheService
 from app.services.vector_service import VectorSearchService
 from app.services.routing_service import RoutingService
 from app.services.rag_service import RAGService
+from app.services.osm_service import OSMService
+from app.graph.workflow import AstuRouteGraph
 
 
 class ServiceContainer:
@@ -22,6 +24,8 @@ class ServiceContainer:
         self._vector: Optional[VectorSearchService] = None
         self._routing: Optional[RoutingService] = None
         self._rag: Optional[RAGService] = None
+        self._osm: Optional[OSMService] = None
+        self._graph: Optional[AstuRouteGraph] = None
     
     # Database Service
     def get_database(self) -> Database:
@@ -73,6 +77,22 @@ class ServiceContainer:
             self._rag = RAGService(vector, ai)
         return self._rag
     
+    # OSM Service
+    def get_osm_service(self) -> OSMService:
+        """Get or create OSM service"""
+        if self._osm is None:
+            self._osm = OSMService()
+        return self._osm
+    
+    # LangGraph Workflow
+    def get_graph(self) -> AstuRouteGraph:
+        """Get or create LangGraph workflow"""
+        if self._graph is None:
+            vector = self.get_vector_service()
+            routing = self.get_routing_service()
+            self._graph = AstuRouteGraph(vector, routing)
+        return self._graph
+    
     async def shutdown(self):
         """Clean up all services"""
         if self._db:
@@ -92,7 +112,10 @@ class ServiceContainer:
         self._vector = None
         self._routing = None
         self._rag = None
+        self._osm = None
+        self._graph = None
 
 
 # Global container instance
 container = ServiceContainer()
+Container = ServiceContainer

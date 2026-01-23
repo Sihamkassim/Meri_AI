@@ -7,26 +7,25 @@ from fastapi.responses import StreamingResponse
 from typing import AsyncGenerator, Optional
 import json
 
-from app.core.container import Container
 from app.core.exceptions import AIServiceError, DatabaseError
 from app.routers.schemas import RouteRequest, RouteResponse, ErrorResponse
 from app.services.interfaces import IRoutingService, IAIService
 from app.core.logging_config import logger
-from app.models import SSEMessage
+from models import SSEMessage
 
 router = APIRouter(prefix="/api/route", tags=["navigation"])
 
 
 def get_routing_service() -> IRoutingService:
     """Dependency injection for routing service"""
-    container = Container()
-    return container.routing_service()
+    from app.core.container import container
+    return container.get_routing_service()
 
 
 def get_ai_service() -> IAIService:
     """Dependency injection for AI service"""
-    container = Container()
-    return container.ai_service()
+    from app.core.container import container
+    return container.get_ai_service()
 
 
 @router.post(

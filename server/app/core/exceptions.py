@@ -49,6 +49,11 @@ class VectorSearchError(AstuRouteException):
         super().__init__(message, code="VECTOR_SEARCH_ERROR")
 
 
+# Aliases for backwards compatibility
+AIServiceError = AIServiceException
+DatabaseError = DatabaseException
+
+
 class ValidationError(AstuRouteException):
     """Input validation failed"""
     

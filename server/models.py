@@ -11,10 +11,17 @@ class POI(BaseModel):
     """Point of Interest (building, landmark, service)"""
     id: Optional[int] = None
     name: str
-    category: str  # e.g., "building", "office", "service", "landmark"
+    category: str  # e.g., "building", "office", "service", "landmark", "lab", "classroom"
     latitude: float
     longitude: float
     description: Optional[str] = None
+    # Detailed location information
+    building: Optional[str] = None  # e.g., "Engineering Block"
+    block_num: Optional[str] = None  # e.g., "A", "B", "C"
+    floor: Optional[int] = None  # Floor number
+    room_num: Optional[str] = None  # e.g., "201", "Lab-3"
+    capacity: Optional[int] = None  # Room capacity
+    facilities: Optional[List[str]] = None  # e.g., ["projector", "whiteboard"]
     tags: Optional[List[str]] = None
     osm_id: Optional[int] = None
     created_at: Optional[datetime] = None

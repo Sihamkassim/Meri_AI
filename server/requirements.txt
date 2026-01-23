@@ -1,6 +1,7 @@
 fastapi>=0.95.0
 uvicorn[standard]>=0.22.0
 pydantic-settings>=2.0.0
+python-multipart>=0.0.6  # For form data uploads
 
 # Database & Supabase
 psycopg[binary]>=3.2
@@ -12,4 +13,15 @@ redis>=4.6.0
 # Env loading, HTTP client, AI clients
 python-dotenv>=1.0.0
 httpx>=0.24.0
+
+# LangGraph & LangChain
+langgraph>=0.2.0
+langchain>=0.3.0
+langchain-core>=0.3.0
+langchain-google-genai>=2.0.0
+
+# OpenStreetMap & Routing
+osmnx>=1.9.0
+networkx>=3.0
+geopy>=2.4.0
 

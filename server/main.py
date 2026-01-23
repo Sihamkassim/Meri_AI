@@ -11,16 +11,71 @@ Clean architecture with:
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
+from fastapi.staticfiles import StaticFiles
 from starlette.responses import JSONResponse
+from contextlib import asynccontextmanager
 from config import settings
 from app.core.logging_config import logger, setup_logging
 from app.core.exceptions import AstuRouteException
 from app.core.container import container
-from app.routers import health, query, route, nearby
+from app.routers import health, query, route, nearby, ai, osm
 import logging
 
 # Setup logging
 setup_logging("astu", logging.INFO if settings.is_production() else logging.DEBUG)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan event handler for startup and shutdown"""
+    # Startup
+    logger.info("=== ASTU Route AI Starting ===")
+    logger.info(f"Environment: {settings.node_env}")
+    logger.info(f"Server: {settings.host}:{settings.port}")
+    
+    # Initialize database
+    try:
+        db = container.get_database()
+        if db.test_connection():
+            logger.info("✓ Database connected")
+        else:
+            logger.warning("⚠ Database connection warning")
+    except Exception as e:
+        logger.error(f"✗ Database initialization failed: {e}")
+    
+    # Initialize AI service
+    try:
+        ai = container.get_ai_service()
+        logger.info(f"✓ AI service ready: {ai.model}")
+    except Exception as e:
+        logger.error(f"✗ AI service initialization failed: {e}")
+    
+    # Initialize cache
+    try:
+        cache = container.get_cache_service()
+        logger.info(f"✓ Cache service ready: {type(cache).__name__}")
+    except Exception as e:
+        logger.error(f"✗ Cache service initialization failed: {e}")
+    
+    # Preload OSM graph
+    try:
+        from app.services.osm_service import OSMService
+        osm_service = OSMService()
+        logger.info("⏳ Loading OSM campus graph...")
+        osm_service.load_campus_graph()
+        logger.info("✓ OSM graph loaded successfully")
+    except Exception as e:
+        logger.warning(f"⚠ OSM graph preload failed (will lazy load): {e}")
+    
+    logger.info("=== Startup Complete ===\\n")
+    
+    yield
+    
+    # Shutdown
+    logger.info("Shutting down services...")
+    await container.shutdown()
+    logger.info("Shutdown complete")
+
 
 # Create FastAPI app
 app = FastAPI(
@@ -28,7 +83,8 @@ app = FastAPI(
     description="AI-powered campus navigation and knowledge system for Adama Science and Technology University",
     version="0.1.0",
     docs_url="/api/docs" if settings.is_development() else None,
-    redoc_url="/api/redoc" if settings.is_development() else None
+    redoc_url="/api/redoc" if settings.is_development() else None,
+    lifespan=lifespan
 )
 
 # CORS middleware
@@ -81,67 +137,19 @@ async def general_exception_handler(request, exc):
     )
 
 
-# Lifespan events
-@app.on_event("startup")
-async def startup_event():
-    """Initialize services on startup"""
-    logger.info("=== ASTU Route AI Starting ===")
-    logger.info(f"Environment: {settings.node_env}")
-    logger.info(f"Server: {settings.host}:{settings.port}")
-    
-    # Initialize database
-    try:
-        db = container.get_database()
-        if db.test_connection():
-            logger.info("✓ Database connected")
-        else:
-            logger.warning("⚠ Database connection warning")
-    except Exception as e:
-        logger.error(f"✗ Database initialization failed: {e}")
-    
-    # Initialize AI service
-    try:
-        ai = container.get_ai_service()
-        logger.info(f"✓ AI service ready: {ai.model}")
-    except Exception as e:
-        logger.error(f"✗ AI service initialization failed: {e}")
-    
-    # Initialize cache
-    try:
-        cache = container.get_cache_service()
-        logger.info(f"✓ Cache service ready: {type(cache).__name__}")
-    except Exception as e:
-        logger.error(f"✗ Cache service initialization failed: {e}")
-    
-    logger.info("=== Startup Complete ===\n")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Clean up resources on shutdown"""
-    logger.info("Shutting down services...")
-    await container.shutdown()
-    logger.info("Shutdown complete")
-
-
 # Include routers
-from app.routers import health, query, route, nearby
+from app.routers import health, query, route, nearby, ai, osm, admin
 
 app.include_router(health.router)
+app.include_router(admin.router)  # Admin dashboard APIs
+app.include_router(ai.router)  # New LangGraph-based unified router
+app.include_router(osm.router)  # OSM routing
 app.include_router(query.router)
 app.include_router(route.router)
 app.include_router(nearby.router)
 
-
-@app.get("/", tags=["Root"])
-async def root():
-    """Root endpoint with API info"""
-    return {
-        "name": "ASTU Route AI",
-        "version": "0.1.0",
-        "docs": "/api/docs",
-        "health": "/health"
-    }
+# Mount static files (admin dashboard)
+app.mount("/", StaticFiles(directory="public", html=True), name="static")
 
 
 if __name__ == "__main__":

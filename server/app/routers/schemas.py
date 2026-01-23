@@ -75,6 +75,15 @@ class NearbyServiceResponse(BaseModel):
     description: Optional[str] = None
 
 
+class NearbyServicesResponse(BaseModel):
+    """Nearby services search response"""
+    category: str
+    location: dict
+    services: List[NearbyServiceResponse]
+    count: int
+    max_distance_km: float
+
+
 class ErrorResponse(BaseModel):
     """Error response"""
     error: str

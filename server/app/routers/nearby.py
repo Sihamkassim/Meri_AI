@@ -5,20 +5,19 @@ Find nearby services in Adama city relative to ASTU campus
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional, List
 
-from app.core.container import Container
 from app.core.exceptions import DatabaseError
 from app.routers.schemas import NearbyServicesRequest, NearbyServicesResponse, ErrorResponse
 from app.services.interfaces import IRoutingService
 from app.core.logging_config import logger
-from app.models import NearbyService
+from models import NearbyService
 
 router = APIRouter(prefix="/api/nearby", tags=["services"])
 
 
 def get_routing_service() -> IRoutingService:
     """Dependency injection for routing service"""
-    container = Container()
-    return container.routing_service()
+    from app.core.container import container
+    return container.get_routing_service()
 
 
 @router.get(
@@ -194,21 +193,9 @@ async def post_nearby_services(
 async def get_categories():
     """Get list of supported service categories"""
     categories = [
-        {"name": "mosque", "icon": "🕌", "description": "Islamic places of worship"},
-        {"name": "pharmacy", "icon": "💊", "description": "Pharmacies and drugstores"},
-        {"name": "salon", "icon": "💇", "description": "Hair salons and barber shops"},
-        {"name": "cafe", "icon": "☕", "description": "Coffee shops and cafes"},
-        {"name": "restaurant", "icon": "🍽️", "description": "Restaurants and eateries"},
-        {"name": "bank", "icon": "🏦", "description": "Banks and financial institutions"},
-        {"name": "atm", "icon": "🏧", "description": "ATM machines"},
-        {"name": "hospital", "icon": "🏥", "description": "Hospitals and medical centers"},
-        {"name": "clinic", "icon": "⚕️", "description": "Medical clinics"},
-        {"name": "market", "icon": "🛒", "description": "Markets and shopping areas"},
-        {"name": "supermarket", "icon": "🛍️", "description": "Supermarkets and grocery stores"},
-        {"name": "bakery", "icon": "🥖", "description": "Bakeries and pastry shops"},
-        {"name": "library", "icon": "📚", "description": "Public libraries"},
-        {"name": "hotel", "icon": "🏨", "description": "Hotels and accommodations"},
-        {"name": "taxi", "icon": "🚕", "description": "Taxi stands and ride services"},
+        "mosque", "pharmacy", "salon", "cafe", "restaurant",
+        "bank", "atm", "hospital", "clinic", "market",
+        "supermarket", "bakery", "library", "hotel", "taxi"
     ]
     
     return {

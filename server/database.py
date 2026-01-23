@@ -64,6 +64,12 @@ class Database:
                             latitude FLOAT NOT NULL,
                             longitude FLOAT NOT NULL,
                             description TEXT,
+                            building VARCHAR(255),
+                            block_num VARCHAR(50),
+                            floor INTEGER,
+                            room_num VARCHAR(50),
+                            capacity INTEGER,
+                            facilities TEXT[],
                             tags TEXT[],
                             osm_id BIGINT,
                             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -111,7 +117,7 @@ class Database:
                    tags: List[str] = None, osm_id: int = None) -> int:
         """Insert a Point of Interest into the database"""
         try:
-            with psycopg.connect(self.connection_string) as conn:
+            with psycopg.connect(self.connection_string, row_factory=dict_row) as conn:
                 with conn.cursor() as cur:
                     cur.execute("""
                         INSERT INTO pois (name, category, latitude, longitude, description, tags, osm_id)
@@ -128,7 +134,7 @@ class Database:
     def get_pois_by_category(self, category: str, limit: int = 10) -> List[Dict]:
         """Fetch POIs by category"""
         try:
-            with psycopg.connect(self.connection_string) as conn:
+            with psycopg.connect(self.connection_string, row_factory=dict_row) as conn:
                 with conn.cursor() as cur:
                     cur.execute("""
                         SELECT * FROM pois WHERE category = %s LIMIT %s;
@@ -167,7 +173,7 @@ class Database:
                        tags: List[str] = None, embedding: List[float] = None) -> int:
         """Insert a document into the knowledge base"""
         try:
-            with psycopg.connect(self.connection_string) as conn:
+            with psycopg.connect(self.connection_string, row_factory=dict_row) as conn:
                 with conn.cursor() as cur:
                     # Convert embedding list to pgvector format
                     embedding_str = f"[{','.join(map(str, embedding))}]" if embedding else None
@@ -188,7 +194,7 @@ class Database:
                        limit: int = 5, threshold: float = 0.5) -> List[Dict]:
         """Search documents by semantic similarity using pgvector"""
         try:
-            with psycopg.connect(self.connection_string) as conn:
+            with psycopg.connect(self.connection_string, row_factory=dict_row) as conn:
                 with conn.cursor() as cur:
                     embedding_str = f"[{','.join(map(str, query_embedding))}]"
                     

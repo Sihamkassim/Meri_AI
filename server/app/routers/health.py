@@ -5,17 +5,33 @@ Health check and status endpoints.
 from fastapi import APIRouter, HTTPException
 from app.core.container import container
 
-router = APIRouter(prefix="/health", tags=["Health"])
+router = APIRouter(tags=["Health"])
 
 
-@router.get("/")
+@router.get("/health")
 async def health_check():
-    """Basic health check"""
-    return {
-        "status": "ok",
-        "service": "ASTU Route AI",
-        "version": "0.1.0"
-    }
+    """Basic health check with all services status"""
+    try:
+        db = container.get_database()
+        ai = container.get_ai_service()
+        cache = container.get_cache_service()
+        
+        return {
+            "status": "healthy",
+            "service": "ASTU Route AI",
+            "version": "0.1.0",
+            "services": {
+                "database": "connected" if db.test_connection() else "disconnected",
+                "ai_service": ai.model if ai else "unavailable",
+                "cache": type(cache).__name__ if cache else "unavailable"
+            }
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "service": "ASTU Route AI",
+            "error": str(e)
+        }
 
 
 @router.get("/db")
