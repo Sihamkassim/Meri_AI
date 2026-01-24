@@ -130,79 +130,8 @@ async def get_nearby_services(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.post(
-    "",
-    response_model=NearbyServicesResponse,
-    responses={
-        400: {"model": ErrorResponse},
-        500: {"model": ErrorResponse},
-    },
-    summary="Find nearby services (POST)",
-    description="Find nearby services with request body for complex queries",
-)
-async def post_nearby_services(
-    request: NearbyServicesRequest,
-    routing_service: IRoutingService = Depends(get_routing_service)
-) -> NearbyServicesResponse:
-    """
-    Find nearby services using POST request
-    
-    Args:
-        request: Search parameters
-        routing_service: Routing service instance
-        
-    Returns:
-        List of nearby services with distances
-    """
-    try:
-        logger.info(f"POST search for {request.category}")
-        
-        # Default to ASTU main gate if no coordinates
-        latitude = request.latitude or 8.5569
-        longitude = request.longitude or 39.2911
-        
-        services = await routing_service.find_nearby_services(
-            latitude=latitude,
-            longitude=longitude,
-            category=request.category.lower(),
-            max_distance_km=request.max_distance_km or 5.0,
-            limit=request.limit or 10
-        )
-        
-        return NearbyServicesResponse(
-            category=request.category,
-            location={
-                "latitude": latitude,
-                "longitude": longitude
-            },
-            services=services or [],
-            count=len(services) if services else 0,
-            max_distance_km=request.max_distance_km or 5.0
-        )
-        
-    except Exception as e:
-        logger.error(f"Error in POST nearby endpoint: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get(
-    "/categories",
-    summary="Get supported service categories",
-    description="List all available service categories for nearby search"
-)
-async def get_categories():
-    """Get list of supported service categories"""
-    categories = [
-        "mosque", "pharmacy", "salon", "cafe", "restaurant",
-        "bank", "atm", "hospital", "clinic", "market",
-        "supermarket", "bakery", "library", "hotel", "taxi"
-    ]
-    
-    return {
-        "categories": categories,
-        "count": len(categories),
-        "description": "Supported service categories for ASTU Route AI nearby search"
-    }
+# POST and /categories endpoints removed - redundant
+# Only keeping GET /nearby which is actively used by client
 
 
 @router.get(

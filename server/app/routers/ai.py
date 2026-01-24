@@ -165,11 +165,7 @@ async def ai_query_stream_get(
 @router.post(
     "/query/stream",
     summary="Streaming AI Query (POST)",
-<<<<<<< HEAD
-    description="Same as GET version but accepts JSON body. Use this for complex requests.",
-=======
     description="Same as /query but with Server-Sent Events streaming for real-time reasoning visibility",
->>>>>>> d6553e27abddde8ef21947a8821c3d919671825f
 )
 async def ai_query_stream_post(
     request: AIQueryRequest,
