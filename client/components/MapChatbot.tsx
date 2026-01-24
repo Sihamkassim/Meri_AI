@@ -13,24 +13,20 @@ interface ChatMessage {
   distance?: string;
 }
 
-interface MapChatbotProps {
-  /** Current user latitude (from geolocation or map center) */
+export interface MapChatbotProps {
   latitude?: number;
-  /** Current user longitude */
   longitude?: number;
-  /** Currently selected node name for context */
   selectedNodeName?: string;
-  /** Travel mode preference */
   mode?: 'walking' | 'taxi' | 'urgent';
-  /** Callback when route is generated */
   onRouteGenerated?: (route: NavigationResponse) => void;
+  embedded?: boolean;
 }
 
 // Default ASTU campus coordinates
 const DEFAULT_LATITUDE = 8.564168;
 const DEFAULT_LONGITUDE = 39.289311;
 
-const MapChatbot: React.FC<MapChatbotProps> = ({
+export const MapChatbot: React.FC<MapChatbotProps> = ({
   latitude = DEFAULT_LATITUDE,
   longitude = DEFAULT_LONGITUDE,
   selectedNodeName,
