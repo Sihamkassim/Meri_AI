@@ -110,6 +110,7 @@ const MapDisplay: React.FC<MapDisplayProps> = ({ selectedNodeId, routeCoords, st
   const [campusNodes, setCampusNodes] = useState<CampusNode[]>([]);
   const [campusBoundary, setCampusBoundary] = useState<[number, number][]>([]);
   const [loadingMap, setLoadingMap] = useState(true);
+  const [showLegend, setShowLegend] = useState(false);
 
   console.log('[MapDisplay] Component mounted/rendered');
 
@@ -325,7 +326,7 @@ const MapDisplay: React.FC<MapDisplayProps> = ({ selectedNodeId, routeCoords, st
   }
 
   return (
-    <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/40 overflow-hidden flex flex-col h-full border-t-8 border-t-emerald-600">
+    <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/40 overflow-hidden flex flex-col h-full ">
       {/* Header Panel */}
       <div className="p-4 md:p-6 border-b border-slate-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white">
         <div>
@@ -565,37 +566,62 @@ const MapDisplay: React.FC<MapDisplayProps> = ({ selectedNodeId, routeCoords, st
           </button>
         </div>
 
-        {/* Legend Overlay - Dynamic based on actual categories in data */}
-        <div className="absolute bottom-3 right-3 sm:bottom-6 sm:right-6 z-[1000] hidden sm:flex flex-col gap-2">
-          <div className="bg-white/95 backdrop-blur-md border border-slate-200 p-4 rounded-2xl shadow-xl max-w-[200px]">
-            <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-600 mb-3">Map Legend</h4>
-            <div className="space-y-2.5">
-              {(() => {
-                // Get unique categories from campus nodes
-                const uniqueCategories = Array.from(new Set(campusNodes.map(n => n.category || 'general')));
-                return uniqueCategories.map(category => {
-                  const info = categoryInfo[category] || { color: '#64748b', emoji: '📍', label: category };
-                  return (
-                    <div key={category} className="flex items-center gap-2">
-                      <div style={{ position: 'relative', width: '24px', height: '30px', flexShrink: 0 }}>
-                        <svg width="24" height="30" viewBox="0 0 32 40" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M16 0C9.373 0 4 5.373 4 12c0 8 12 28 12 28s12-20 12-28c0-6.627-5.373-12-12-12z" 
-                                fill={info.color} 
-                                stroke="white" 
-                                strokeWidth="2"/>
-                          <circle cx="16" cy="12" r="5" fill="white" opacity="0.9"/>
-                        </svg>
-                        <div style={{ position: 'absolute', top: '3px', left: '50%', transform: 'translateX(-50%)', fontSize: '11px' }}>
-                          {info.emoji}
+        {/* Legend Toggle Button & Popup */}
+        <div className="absolute bottom-3 right-3 sm:bottom-6 sm:right-6 z-[1000] flex flex-col items-end gap-2">
+          {/* Legend Popup */}
+          {showLegend && (
+            <div className="bg-white/95 backdrop-blur-md border border-slate-200 p-4 rounded-2xl shadow-xl max-w-[200px] animate-in fade-in slide-in-from-bottom-2 duration-200">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-600">Map Legend</h4>
+                <button
+                  onClick={() => setShowLegend(false)}
+                  className="text-slate-400 hover:text-slate-600 transition-colors"
+                  aria-label="Close legend"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              </div>
+              <div className="space-y-2.5">
+                {(() => {
+                  // Get unique categories from campus nodes
+                  const uniqueCategories = Array.from(new Set(campusNodes.map(n => n.category || 'general')));
+                  return uniqueCategories.map(category => {
+                    const info = categoryInfo[category] || { color: '#64748b', emoji: '📍', label: category };
+                    return (
+                      <div key={category} className="flex items-center gap-2">
+                        <div style={{ position: 'relative', width: '24px', height: '30px', flexShrink: 0 }}>
+                          <svg width="24" height="30" viewBox="0 0 32 40" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M16 0C9.373 0 4 5.373 4 12c0 8 12 28 12 28s12-20 12-28c0-6.627-5.373-12-12-12z" 
+                                  fill={info.color} 
+                                  stroke="white" 
+                                  strokeWidth="2"/>
+                            <circle cx="16" cy="12" r="5" fill="white" opacity="0.9"/>
+                          </svg>
+                          <div style={{ position: 'absolute', top: '3px', left: '50%', transform: 'translateX(-50%)', fontSize: '11px' }}>
+                            {info.emoji}
+                          </div>
                         </div>
+                        <span className="text-[11px] font-medium text-slate-700">{info.label}</span>
                       </div>
-                      <span className="text-[11px] font-medium text-slate-700">{info.label}</span>
-                    </div>
-                  );
-                });
-              })()}
+                    );
+                  });
+                })()}
+              </div>
             </div>
-          </div>
+          )}
+          
+          {/* Legend Toggle Button */}
+          <button
+            onClick={() => setShowLegend(!showLegend)}
+            title="Toggle map legend"
+            className="px-4 py-2.5 text-xs font-bold bg-white/95 backdrop-blur-md border border-slate-200 rounded-xl shadow-lg outline-none transition-all flex items-center gap-2 hover:bg-white hover:border-emerald-300"
+          >
+            <MapIcon size={14} className="text-slate-600" />
+            <span className="hidden sm:inline">Legend</span>
+          </button>
         </div>
 
         {/* Distance Indicator (Simplified) */}

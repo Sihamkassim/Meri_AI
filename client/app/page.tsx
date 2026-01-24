@@ -43,42 +43,37 @@ export default function Home() {
 
       case AppRoute.MAP:
         return (
-          <main className="flex-grow pt-28 max-w-7xl mx-auto px-4 lg:px-8 pb-14 w-full animate-in slide-in-from-bottom-4 duration-500">
-            <div className="h-[520px] lg:h-[720px] rounded-[32px] overflow-hidden bg-white/60 backdrop-blur-xl border border-white/40 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.25)]">
-              <MapWrapper 
-                selectedNodeId={selectedDestId} 
-                routeCoords={routeData.coords}
-                startCoords={routeData.start}
-                endCoords={routeData.end}
-              />
+          <main className="flex-grow pt-24 max-w-[95rem] mx-auto px-4 lg:px-6 pb-8 w-full animate-in slide-in-from-bottom-4 duration-500">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-[650px] lg:h-[85vh] min-h-[600px]">
+              {/* Left Side: Map - Span 8 */}
+              <div className="lg:col-span-8 h-full rounded-[32px] overflow-hidden bg-white/90 backdrop-blur-3xl border border-white/60 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.3)] relative z-10">
+                <MapWrapper selectedNodeId={selectedDestId} />
+              </div>
+
+              {/* Right Side: AI Assistant - Span 4 (Increased width) */}
+              <div className="lg:col-span-4 h-full rounded-[32px] overflow-hidden bg-slate-900 border border-slate-800 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.5)] relative z-10 flex flex-col">
+                <MapChatbot
+                  selectedNodeName={selectedDestId ? CAMPUS_NODES.find(n => n.id === selectedDestId)?.name : undefined}
+                  mode="walking"
+                  embedded={true}
+                />
+              </div>
             </div>
-            {/* Floating MapChatbot for navigation queries (LangGraph) */}
-            <MapChatbot 
-              selectedNodeName={selectedDestId ? CAMPUS_NODES.find(n => n.id === selectedDestId)?.name : undefined}
-              mode="walking"
-              onRouteGenerated={(data) => {
-                setRouteData({
-                  coords: data.route_coords,
-                  start: data.start_coordinates,
-                  end: data.end_coordinates,
-                });
-              }}
-            />
           </main>
         );
 
       case AppRoute.ASSISTANT:
         return (
-          <main className="flex-grow pt-28 max-w-4xl mx-auto px-4 animate-in fade-in duration-500">
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-xl p-8">
+          <main className="flex-grow pt-28 max-w-4xl mx-auto px-4 animate-in fade-in duration-500 mt-4">
+            {/* <div className="bg-white rounded-3xl border border-slate-200 shadow-xl p-8">
               <h1 className="text-3xl font-extrabold text-slate-900">
                 Campus Intelligence
               </h1>
               <p className="text-slate-600 mt-1 mb-6">
                 Ask Meri anything about ASTU locations.
-              </p>
+              </p> */}
               <AIAssistant />
-            </div>
+            {/* </div> */}
           </main>
         );
 

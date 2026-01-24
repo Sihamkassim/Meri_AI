@@ -67,12 +67,12 @@ const AIAssistant: React.FC = () => {
   };
 
   return (
-    <div className="bg-slate-900 rounded-3xl border border-slate-800 shadow-2xl flex flex-col h-[500px] md:h-[600px] overflow-hidden">
+    <div className="bg-slate-900 rounded-3xl shadow-2xl flex flex-col h-[500px] md:h-[600px] overflow-hidden">
       {/* Terminal Header */}
-      <div className="px-6 py-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
+      <div className="px-6 py-4 bg-slate-900  flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-blue-500/10 rounded-lg flex items-center justify-center">
-            <BookOpen size={18} className="text-blue-500" />
+            <BookOpen size={18} className="text-emerald-700" />
           </div>
           <div>
             <h2 className="text-sm font-bold text-white tracking-wide">ASTU Knowledge Assistant</h2>
@@ -124,7 +124,7 @@ const AIAssistant: React.FC = () => {
                   <div className="ml-1">
                     <button 
                       onClick={() => setShowSources(showSources === i ? null : i)}
-                      className="text-[10px] text-blue-400 hover:text-blue-300 font-medium flex items-center gap-1"
+                      className="text-[10px] text-emerald-400 hover:text-emerald-300 font-medium flex items-center gap-1"
                     >
                       <BookOpen size={10} />
                       {showSources === i ? 'Hide' : 'Show'} {msg.sources.length} source{msg.sources.length > 1 ? 's' : ''}
@@ -135,7 +135,7 @@ const AIAssistant: React.FC = () => {
                         {msg.sources.map((source: any, idx: number) => (
                           <div key={idx} className="px-3 py-2 bg-slate-800/50 rounded-lg border border-slate-700/50 text-xs">
                             {source.title && (
-                              <div className="font-medium text-blue-400 mb-1">{source.title}</div>
+                              <div className="font-medium text-emerald-400 mb-1">{source.title}</div>
                             )}
                             <div className="text-slate-400 line-clamp-2">{source.content}</div>
                           </div>
@@ -154,9 +154,9 @@ const AIAssistant: React.FC = () => {
           <div className="flex justify-start flex-col gap-3">
             <div className="bg-slate-900 border border-slate-800 px-4 py-3 rounded-2xl flex items-center gap-3">
               <div className="flex gap-1">
-                <span className="w-1 h-1 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-                <span className="w-1 h-1 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-                <span className="w-1 h-1 bg-blue-500 rounded-full animate-bounce"></span>
+                <span className="w-1 h-1 bg-emerald-700 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                <span className="w-1 h-1 bg-emerald-700 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                <span className="w-1 h-1 bg-emerald-700 rounded-full animate-bounce"></span>
               </div>
               <span className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">Processing...</span>
             </div>

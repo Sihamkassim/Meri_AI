@@ -35,7 +35,7 @@ export default function InstallPWA() {
       try {
         await deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;
-        
+
         if (outcome === 'accepted') {
           setDeferredPrompt(null);
           setIsInstalled(true);
@@ -55,11 +55,11 @@ export default function InstallPWA() {
     <>
       <button
         onClick={handleInstallClick}
-        className="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold px-6 py-3 rounded-full shadow-lg transition-all duration-300 hover:scale-105 active:scale-95"
+        className="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-slate-900/90 hover:bg-slate-800 text-white/90 font-medium px-5 py-2.5 rounded-full backdrop-blur-md border border-white/10 shadow-xl shadow-slate-900/20 transition-all duration-300 hover:scale-105 active:scale-95 group"
         aria-label="Install App"
       >
-        <Download className="w-5 h-5" />
-        <span>Install App</span>
+        <Download className="w-4 h-4 group-hover:-translate-y-0.5 transition-transform" />
+        <span className="text-sm">Install App</span>
       </button>
 
       {showInstructions && (
@@ -67,17 +67,17 @@ export default function InstallPWA() {
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl">
             <div className="flex justify-between items-start mb-4">
               <h3 className="text-xl font-bold text-slate-900">Install ASTU Route AI</h3>
-              <button 
+              <button
                 onClick={() => setShowInstructions(false)}
                 className="text-slate-400 hover:text-slate-600"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <div className="space-y-4 text-sm text-slate-600">
               <p className="font-semibold text-slate-900">To install this app:</p>
-              
+
               <div className="bg-slate-50 p-4 rounded-lg">
                 <p className="font-semibold text-emerald-600 mb-2">Chrome/Edge (Desktop):</p>
                 <ol className="list-decimal list-inside space-y-1">
