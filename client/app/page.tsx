@@ -24,6 +24,13 @@ export default function Home() {
   const selectedDestId = useAppStore((s) => s.selectedDestId);
   const setCurrentRoute = useAppStore((s) => s.setCurrentRoute);
   const navigateToDestination = useAppStore((s) => s.navigateToDestination);
+  
+  // Route visualization state
+  const [routeData, setRouteData] = React.useState<{
+    coords?: Array<{ lat: number; lng: number }>;
+    start?: { lat: number; lon: number; name: string };
+    end?: { lat: number; lon: number; name: string };
+  }>({});
 
   const renderContent = () => {
     switch (currentRoute) {
@@ -38,12 +45,24 @@ export default function Home() {
         return (
           <main className="flex-grow pt-28 max-w-7xl mx-auto px-4 lg:px-8 pb-14 w-full animate-in slide-in-from-bottom-4 duration-500">
             <div className="h-[520px] lg:h-[720px] rounded-[32px] overflow-hidden bg-white/60 backdrop-blur-xl border border-white/40 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.25)]">
-              <MapWrapper selectedNodeId={selectedDestId} />
+              <MapWrapper 
+                selectedNodeId={selectedDestId} 
+                routeCoords={routeData.coords}
+                startCoords={routeData.start}
+                endCoords={routeData.end}
+              />
             </div>
             {/* Floating MapChatbot for navigation queries (LangGraph) */}
             <MapChatbot 
               selectedNodeName={selectedDestId ? CAMPUS_NODES.find(n => n.id === selectedDestId)?.name : undefined}
               mode="walking"
+              onRouteGenerated={(data) => {
+                setRouteData({
+                  coords: data.route_coords,
+                  start: data.start_coordinates,
+                  end: data.end_coordinates,
+                });
+              }}
             />
           </main>
         );

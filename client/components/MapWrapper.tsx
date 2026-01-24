@@ -17,13 +17,21 @@ const MapDisplay = dynamic(() => import('./MapDisplay'), {
 
 interface MapWrapperProps {
   selectedNodeId?: string;
+  routeCoords?: Array<{ lat: number; lng: number }>;
+  startCoords?: { lat: number; lon: number; name: string };
+  endCoords?: { lat: number; lon: number; name: string };
 }
 
-const MapWrapper: React.FC<MapWrapperProps> = ({ selectedNodeId }) => {
+const MapWrapper: React.FC<MapWrapperProps> = ({ selectedNodeId, routeCoords, startCoords, endCoords }) => {
   // Use a stable key to prevent re-initialization
   return (
     <div key="map-wrapper-stable" style={{ height: '100%', width: '100%' }}>
-      <MapDisplay selectedNodeId={selectedNodeId} />
+      <MapDisplay 
+        selectedNodeId={selectedNodeId} 
+        routeCoords={routeCoords}
+        startCoords={startCoords}
+        endCoords={endCoords}
+      />
     </div>
   );
 };

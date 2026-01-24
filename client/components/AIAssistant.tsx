@@ -1,14 +1,14 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Sparkles, Terminal, BookOpen } from 'lucide-react';
-import { ragAssistant, RAGResponse } from '../services/geminiService';
+import { Send, Bot, User, BookOpen, Zap } from 'lucide-react';
+import { useRAGStreaming } from '../hooks/useRAGStreaming';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: number;
-  sources?: RAGResponse['sources'];
+  sources?: Array<{ title?: string; content: string; similarity?: number }>;
   confidence?: number;
 }
 
@@ -16,15 +16,35 @@ const AIAssistant: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([
     { 
       role: 'assistant', 
-      content: 'Welcome to the ASTU Knowledge Assistant! I can answer questions about Adama Science and Technology University - academics, facilities, history, and more. How can I help you?', 
+      content: 'Welcome to the ASTU Knowledge Assistant! 📚\n\nI can help you with:\n• Academic programs & requirements\n• University policies & regulations\n• Student services & facilities\n• Campus history & information\n\nAsk me anything about ASTU!', 
       timestamp: Date.now() 
     }
   ]);
   const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [showSources, setShowSources] = useState<number | null>(null);
+  const [showReasoning, setShowReasoning] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const eventSourceRef = useRef<EventSource | null>(null);
+
+  const { isStreaming, reasoningSteps, answer, error, startStream } = useRAGStreaming({
+    onAnswer: (data) => {
+      // Add AI response to messages
+      const aiMessage: ChatMessage = {
+        role: 'assistant',
+        content: data.answer || 'No answer generated',
+        timestamp: Date.now(),
+        sources: data.sources,
+        confidence: data.confidence,
+      };
+      setMessages(prev => [...prev, aiMessage]);
+    },
+    onError: (errMsg) => {
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: `❌ Error: ${errMsg}`,
+        timestamp: Date.now(),
+      }]);
+    }
+  });
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -32,44 +52,18 @@ const AIAssistant: React.FC = () => {
     }
   }, [messages, reasoningSteps]);
 
-  // Cleanup EventSource on unmount
-  useEffect(() => {
-    return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-      }
-    };
-  }, []);
-
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isStreaming) return;
 
+    // Add user message
     const userMessage: ChatMessage = { role: 'user', content: input, timestamp: Date.now() };
     setMessages(prev => [...prev, userMessage]);
+    
     const question = input;
     setInput('');
-    setIsLoading(true);
 
-    try {
-      const response = await ragAssistant.ask(question);
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: response.answer, 
-        timestamp: Date.now(),
-        sources: response.sources,
-        confidence: response.confidence
-      }]);
-    } catch (error) {
-      console.error('[AIAssistant] Error:', error);
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: "I'm having trouble connecting to the knowledge base. Please try again in a moment.", 
-        timestamp: Date.now() 
-      }]);
-    } finally {
-      setIsLoading(false);
-      setReasoningSteps([]);
-    }
+    // Start RAG-only streaming
+    startStream(question);
   };
 
   return (
@@ -84,29 +78,48 @@ const AIAssistant: React.FC = () => {
             <h2 className="text-sm font-bold text-white tracking-wide">ASTU Knowledge Assistant</h2>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
-              <span className="text-[10px] text-blue-500 font-bold uppercase tracking-widest">RAG Engine Active</span>
+              <span className="text-[10px] text-blue-500 font-bold uppercase tracking-widest">
+                {isStreaming ? 'Searching...' : 'RAG Engine'}
+              </span>
             </div>
           </div>
         </div>
-        <Sparkles size={16} className="text-slate-600" />
+        <button 
+          onClick={() => setShowReasoning(!showReasoning)}
+          className="text-xs text-slate-500 hover:text-emerald-400 transition"
+        >
+          {showReasoning ? '🧠 Hide' : '🧠 Show'} Reasoning
+        </button>
       </div>
 
       <div ref={scrollRef} className="flex-grow overflow-y-auto p-6 space-y-6 custom-scrollbar bg-slate-950/50">
         {messages.map((msg, i) => (
           <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in duration-300`}>
             <div className={`flex gap-3 max-w-[90%] ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-              <div className={`mt-1 p-2 rounded-xl flex-shrink-0 h-fit ${msg.role === 'user' ? 'bg-slate-800 text-slate-400' : 'bg-blue-500 text-white'}`}>
+              <div className={`mt-1 p-2 rounded-xl flex-shrink-0 h-fit ${
+                msg.role === 'user' ? 'bg-slate-800 text-slate-400' : 'bg-blue-500 text-white'
+              }`}>
                 {msg.role === 'user' ? <User size={14} /> : <Bot size={14} />}
               </div>
               <div className="flex flex-col gap-2">
-                <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${msg.role === 'user'
-                  ? 'bg-slate-800 text-white rounded-tr-none border border-slate-700'
-                  : 'bg-slate-900 text-slate-300 rounded-tl-none border border-slate-800 shadow-lg'
-                  }`}>
+                <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-line ${
+                  msg.role === 'user'
+                    ? 'bg-slate-800 text-white rounded-tr-none border border-slate-700'
+                    : 'bg-slate-900 text-slate-300 rounded-tl-none border border-slate-800 shadow-lg'
+                }`}>
                   {msg.content}
                 </div>
                 
-                {/* Sources toggle for assistant messages */}
+                {/* Confidence Badge */}
+                {msg.role === 'assistant' && msg.confidence && (
+                  <div className="flex items-center gap-2 ml-1">
+                    <span className="text-[10px] text-slate-500 font-medium">
+                      Confidence: {Math.round(msg.confidence * 100)}%
+                    </span>
+                  </div>
+                )}
+
+                {/* Sources toggle */}
                 {msg.role === 'assistant' && msg.sources && msg.sources.length > 0 && (
                   <div className="ml-1">
                     <button 
@@ -115,27 +128,16 @@ const AIAssistant: React.FC = () => {
                     >
                       <BookOpen size={10} />
                       {showSources === i ? 'Hide' : 'Show'} {msg.sources.length} source{msg.sources.length > 1 ? 's' : ''}
-                      {msg.confidence && (
-                        <span className="ml-2 text-slate-500">
-                          ({Math.round(msg.confidence * 100)}% confidence)
-                        </span>
-                      )}
                     </button>
                     
                     {showSources === i && (
                       <div className="mt-2 space-y-2">
-                        {msg.sources.map((source, idx) => (
+                        {msg.sources.map((source: any, idx: number) => (
                           <div key={idx} className="px-3 py-2 bg-slate-800/50 rounded-lg border border-slate-700/50 text-xs">
                             {source.title && (
                               <div className="font-medium text-blue-400 mb-1">{source.title}</div>
                             )}
                             <div className="text-slate-400 line-clamp-2">{source.content}</div>
-                            {source.url && (
-                              <a href={source.url} target="_blank" rel="noopener noreferrer" 
-                                 className="text-blue-500 hover:underline mt-1 inline-block">
-                                View source →
-                              </a>
-                            )}
                           </div>
                         ))}
                       </div>
@@ -146,7 +148,9 @@ const AIAssistant: React.FC = () => {
             </div>
           </div>
         ))}
-        {isLoading && (
+
+        {/* Live Streaming Indicator */}
+        {isStreaming && (
           <div className="flex justify-start flex-col gap-3">
             <div className="bg-slate-900 border border-slate-800 px-4 py-3 rounded-2xl flex items-center gap-3">
               <div className="flex gap-1">
@@ -154,8 +158,10 @@ const AIAssistant: React.FC = () => {
                 <span className="w-1 h-1 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
                 <span className="w-1 h-1 bg-blue-500 rounded-full animate-bounce"></span>
               </div>
-              <span className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">Searching Knowledge Base...</span>
+              <span className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">Processing...</span>
             </div>
+
+            {/* Live Reasoning Steps */}
             {reasoningSteps.length > 0 && showReasoning && (
               <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs space-y-1 max-w-[90%]">
                 <div className="flex items-center gap-2 text-emerald-500 font-bold mb-2">
@@ -164,7 +170,7 @@ const AIAssistant: React.FC = () => {
                 </div>
                 {reasoningSteps.map((step, idx) => (
                   <div key={idx} className="text-slate-400 flex gap-2 animate-in fade-in duration-200">
-                    <span className="text-emerald-500">→</span>
+                    <span className="text-emerald-500 flex-shrink-0">{idx + 1}.</span>
                     <span>{step}</span>
                   </div>
                 ))}
@@ -172,12 +178,19 @@ const AIAssistant: React.FC = () => {
             )}
           </div>
         )}
+
+        {/* Error Display */}
+        {error && (
+          <div className="bg-red-900/20 border border-red-800 rounded-xl p-3 text-sm text-red-400">
+            ❌ {error}
+          </div>
+        )}
       </div>
 
       <div className="p-4 md:p-6 bg-slate-900 border-t border-slate-800">
         {/* Suggestion Chips */}
         <div className="flex flex-wrap gap-2 mb-3">
-          {['Where is the library?', 'Nearest mosque', 'How to get to Block 57?', 'Registration office'].map((suggestion, idx) => (
+          {['Admission requirements', 'Academic programs', 'Student services', 'Campus facilities'].map((suggestion, idx) => (
             <button
               key={idx}
               onClick={() => setInput(suggestion)}
@@ -194,19 +207,19 @@ const AIAssistant: React.FC = () => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Ask about ASTU academics, facilities, history..."
+            placeholder="Ask about navigation, academics, facilities..."
             className="flex-grow px-5 py-3.5 bg-slate-950 border border-slate-800 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm text-white placeholder:text-slate-600"
           />
           <button
             onClick={handleSend}
-            disabled={!input.trim() || isLoading}
+            disabled={!input.trim() || isStreaming}
             className="p-3.5 bg-blue-600 text-white rounded-2xl hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-90 shadow-lg shadow-blue-500/20"
           >
             <Send size={20} />
           </button>
         </div>
         <p className="text-[10px] text-slate-600 mt-2 text-center">
-          Powered by RAG • Answers based on official ASTU documents
+          Powered by Voyage AI • Real-time Streaming • Knowledge Base Search
         </p>
       </div>
     </div>

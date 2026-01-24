@@ -7,11 +7,23 @@ import { CampusNode, UserLocation } from '../types';
 import { Layers, Maximize2, Navigation2, Info, MapPin, Globe, Map as MapIcon, Locate, Loader2 } from 'lucide-react';
 
 // Marker Icons setup (Academic style)
-const createIcon = (color: string) => L.divIcon({
-  html: `<div style="background-color: ${color}; width: 12px; height: 12px; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 0 2px rgba(0,0,0,0.05);"></div>`,
-  className: 'custom-div-icon',
-  iconSize: [12, 12],
-  iconAnchor: [6, 6]
+const createIcon = (color: string, emoji: string = '📍') => L.divIcon({
+  html: `
+    <div style="position: relative; width: 32px; height: 40px;">
+      <svg width="32" height="40" viewBox="0 0 32 40" xmlns="http://www.w3.org/2000/svg">
+        <path d="M16 0C9.373 0 4 5.373 4 12c0 8 12 28 12 28s12-20 12-28c0-6.627-5.373-12-12-12z" 
+              fill="${color}" 
+              stroke="white" 
+              stroke-width="2"/>
+        <circle cx="16" cy="12" r="5" fill="white" opacity="0.9"/>
+      </svg>
+      <div style="position: absolute; top: 4px; left: 50%; transform: translateX(-50%); font-size: 14px;">${emoji}</div>
+    </div>
+  `,
+  className: 'custom-pin-icon',
+  iconSize: [32, 40],
+  iconAnchor: [16, 40],
+  popupAnchor: [0, -40]
 });
 
 // User location icon with pulsing animation
@@ -34,20 +46,36 @@ const userLocationIcon = L.divIcon({
 });
 
 const icons: Record<string, L.DivIcon> = {
-  academic: createIcon('#059669'), // Emerald
-  administrative: createIcon('#475569'), // Slate
-  residential: createIcon('#0891b2'), // Cyan
-  amenity: createIcon('#9333ea'), // Purple
-  gate: createIcon('#dc2626'), // Red
-  service: createIcon('#f59e0b'), // Amber - for city services
-  building: createIcon('#3b82f6'), // Blue - for buildings
-  library: createIcon('#8b5cf6'), // Violet - for libraries
-  general: createIcon('#64748b'), // Slate gray - for general
-  default: createIcon('#059669'), // Default fallback
+  academic: createIcon('#10b981', '🎓'), // Emerald with graduation cap
+  administrative: createIcon('#6366f1', '🏛️'), // Indigo with building
+  residential: createIcon('#0ea5e9', '🏠'), // Sky blue with house
+  amenity: createIcon('#a855f7', '🍽️'), // Purple with dining
+  gate: createIcon('#ef4444', '🚪'), // Red with door
+  service: createIcon('#f59e0b', '⚙️'), // Amber with gear
+  building: createIcon('#3b82f6', '🏢'), // Blue with office building
+  library: createIcon('#8b5cf6', '📚'), // Violet with books
+  general: createIcon('#64748b', '📍'), // Slate with pin
+  default: createIcon('#10b981', '📍'), // Default fallback
+};
+
+// Category metadata for dynamic legend
+const categoryInfo: Record<string, { color: string; emoji: string; label: string }> = {
+  academic: { color: '#10b981', emoji: '🎓', label: 'Academic' },
+  administrative: { color: '#6366f1', emoji: '🏛️', label: 'Administration' },
+  residential: { color: '#0ea5e9', emoji: '🏠', label: 'Residential' },
+  amenity: { color: '#a855f7', emoji: '🍽️', label: 'Amenities' },
+  gate: { color: '#ef4444', emoji: '🚪', label: 'Entry Gates' },
+  service: { color: '#f59e0b', emoji: '⚙️', label: 'City Services' },
+  building: { color: '#3b82f6', emoji: '🏢', label: 'Buildings' },
+  library: { color: '#8b5cf6', emoji: '📚', label: 'Libraries' },
+  general: { color: '#64748b', emoji: '📍', label: 'General' },
 };
 
 interface MapDisplayProps {
   selectedNodeId?: string;
+  routeCoords?: Array<{ lat: number; lng: number }>;
+  startCoords?: { lat: number; lon: number; name: string };
+  endCoords?: { lat: number; lon: number; name: string };
 }
 
 // Component to handle map view updates and auto-fit to POIs
@@ -71,7 +99,7 @@ const MapController: React.FC<{ selectedNode?: CampusNode; nodes: CampusNode[] }
   return null;
 };
 
-const MapDisplay: React.FC<MapDisplayProps> = ({ selectedNodeId }) => {
+const MapDisplay: React.FC<MapDisplayProps> = ({ selectedNodeId, routeCoords, startCoords, endCoords }) => {
 
   const [filter, setFilter] = useState<string | 'all'>('all');
   const [routeMode, setRouteMode] = useState<'walking' | 'taxi' | 'urgent'>('walking');
@@ -95,7 +123,12 @@ const MapDisplay: React.FC<MapDisplayProps> = ({ selectedNodeId }) => {
     console.log('[MapDisplay] Fetching POIs from:', fetchUrl);
     setLoadingMap(true);
     
-    fetch(fetchUrl)
+    fetch(fetchUrl, {
+      mode: 'cors',
+      headers: {
+        'Accept': 'application/json',
+      },
+    })
       .then(res => {
         console.log('[MapDisplay] Response status:', res.status);
         if (!res.ok) {
@@ -276,9 +309,9 @@ const MapDisplay: React.FC<MapDisplayProps> = ({ selectedNodeId }) => {
       ]
     : [8.5520, 39.2850]; // Default ASTU center
 
-  // Simple route simulation between first two connected nodes
-  const activeRouteCoords: [number, number][] = selectedNodeId === 'library'
-    ? [[8.5420, 39.2710], [8.5415, 39.2700], [8.5410, 39.2680], [8.5400, 39.2695]]
+  // Convert route coordinates from API format to Leaflet format
+  const activeRouteCoords: [number, number][] = routeCoords
+    ? routeCoords.map(coord => [coord.lat, coord.lng] as [number, number])
     : [];
 
   if (loadingMap) {
@@ -446,16 +479,57 @@ const MapDisplay: React.FC<MapDisplayProps> = ({ selectedNodeId }) => {
 
           {/* Active Route Visualization */}
           {activeRouteCoords.length > 0 && (
-            <Polyline
-              positions={activeRouteCoords}
-              pathOptions={{
-                color: '#059669',
-                weight: 5,
-                opacity: 0.8,
-                lineCap: 'round',
-                lineJoin: 'round'
-              }}
-            />
+            <>
+              <Polyline
+                positions={activeRouteCoords}
+                pathOptions={{
+                  color: '#3b82f6',
+                  weight: 6,
+                  opacity: 0.85,
+                  lineCap: 'round',
+                  lineJoin: 'round',
+                  dashArray: '0'
+                }}
+              />
+              {/* Start marker */}
+              {startCoords && (
+                <Marker
+                  position={[startCoords.lat, startCoords.lon]}
+                  icon={L.divIcon({
+                    html: `<div style="background: linear-gradient(135deg, #10b981, #059669); width: 16px; height: 16px; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>`,
+                    className: 'route-start-marker',
+                    iconSize: [16, 16],
+                    iconAnchor: [8, 8]
+                  })}
+                >
+                  <Popup>
+                    <div className="text-sm">
+                      <div className="font-bold text-emerald-700">📍 Start</div>
+                      <div className="text-slate-600">{startCoords.name}</div>
+                    </div>
+                  </Popup>
+                </Marker>
+              )}
+              {/* End marker */}
+              {endCoords && (
+                <Marker
+                  position={[endCoords.lat, endCoords.lon]}
+                  icon={L.divIcon({
+                    html: `<div style="background: linear-gradient(135deg, #ef4444, #dc2626); width: 16px; height: 16px; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>`,
+                    className: 'route-end-marker',
+                    iconSize: [16, 16],
+                    iconAnchor: [8, 8]
+                  })}
+                >
+                  <Popup>
+                    <div className="text-sm">
+                      <div className="font-bold text-red-700">🎯 Destination</div>
+                      <div className="text-slate-600">{endCoords.name}</div>
+                    </div>
+                  </Popup>
+                </Marker>
+              )}
+            </>
           )}
 
           <MapController selectedNode={selectedNode} nodes={campusNodes} />
@@ -491,15 +565,35 @@ const MapDisplay: React.FC<MapDisplayProps> = ({ selectedNodeId }) => {
           </button>
         </div>
 
-        {/* Legend Overlay */}
+        {/* Legend Overlay - Dynamic based on actual categories in data */}
         <div className="absolute bottom-3 right-3 sm:bottom-6 sm:right-6 z-[1000] hidden sm:flex flex-col gap-2">
-          <div className="bg-white/90 backdrop-blur-md border border-slate-100 p-4 rounded-2xl shadow-xl shadow-slate-200/20 max-w-[180px]">
-            <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-3">Map Legend</h4>
-            <div className="space-y-2">
-              <LegendItem color="#059669" label="Academic" />
-              <LegendItem color="#475569" label="Admin" />
-              <LegendItem color="#dc2626" label="Entry Gate" />
-              <LegendItem color="#9333ea" label="City Service" />
+          <div className="bg-white/95 backdrop-blur-md border border-slate-200 p-4 rounded-2xl shadow-xl max-w-[200px]">
+            <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-600 mb-3">Map Legend</h4>
+            <div className="space-y-2.5">
+              {(() => {
+                // Get unique categories from campus nodes
+                const uniqueCategories = Array.from(new Set(campusNodes.map(n => n.category || 'general')));
+                return uniqueCategories.map(category => {
+                  const info = categoryInfo[category] || { color: '#64748b', emoji: '📍', label: category };
+                  return (
+                    <div key={category} className="flex items-center gap-2">
+                      <div style={{ position: 'relative', width: '24px', height: '30px', flexShrink: 0 }}>
+                        <svg width="24" height="30" viewBox="0 0 32 40" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M16 0C9.373 0 4 5.373 4 12c0 8 12 28 12 28s12-20 12-28c0-6.627-5.373-12-12-12z" 
+                                fill={info.color} 
+                                stroke="white" 
+                                strokeWidth="2"/>
+                          <circle cx="16" cy="12" r="5" fill="white" opacity="0.9"/>
+                        </svg>
+                        <div style={{ position: 'absolute', top: '3px', left: '50%', transform: 'translateX(-50%)', fontSize: '11px' }}>
+                          {info.emoji}
+                        </div>
+                      </div>
+                      <span className="text-[11px] font-medium text-slate-700">{info.label}</span>
+                    </div>
+                  );
+                });
+              })()}
             </div>
           </div>
         </div>

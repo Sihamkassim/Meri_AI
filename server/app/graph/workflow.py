@@ -158,6 +158,12 @@ class AstuRouteGraph:
                     
                     # Yield final answer when available
                     if "final_answer" in state_update:
+                        # Debug logging
+                        route_coords_value = state_update.get("route_coords")
+                        logger.info(f"[Workflow] route_coords before streaming: {type(route_coords_value)} with {len(route_coords_value) if route_coords_value and isinstance(route_coords_value, list) else 0} waypoints")
+                        if route_coords_value and isinstance(route_coords_value, list) and len(route_coords_value) > 0:
+                            logger.info(f"[Workflow] First waypoint: {route_coords_value[0]}")
+                        
                         # Construct the full answer object for the frontend
                         # If the node returned a dictionary with all the keys (like the updated response_composer),
                         # we should pass that through.
@@ -167,6 +173,7 @@ class AstuRouteGraph:
                             "start_coordinates": state_update.get("start_coordinates"),
                             "end_coordinates": state_update.get("end_coordinates"),
                             "distance_estimate": state_update.get("distance_estimate"),
+                            "route_coords": state_update.get("route_coords"),
                             "rag_confidence": state_update.get("rag_confidence"),
                             "geo_confidence": state_update.get("geo_confidence"),
                             "sources_used": state_update.get("sources_used", []),

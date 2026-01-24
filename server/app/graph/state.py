@@ -33,6 +33,7 @@ class GraphState(TypedDict):
     geo_confidence: Optional[str]
     start_coordinates: Optional[Dict[str, Any]]
     end_coordinates: Optional[Dict[str, Any]]
+    route_coords: Optional[List[Dict[str, Any]]]  # OSM waypoints for map visualization
     
     # Nearby services
     nearby_services: Optional[List[Dict[str, Any]]]

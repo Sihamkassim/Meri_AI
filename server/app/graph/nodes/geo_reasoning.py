@@ -299,6 +299,9 @@ async def _handle_navigation(
             ]
         }
         
+        # Debug logging
+        logger.info(f"[GeoReasoningNode] Returning navigation result with route_coords: {len(route_coords) if route_coords else 0} waypoints")
+        
     except Exception as e:
         logger.error(f"[GeoReasoningNode] Navigation error: {e}")
         return {
