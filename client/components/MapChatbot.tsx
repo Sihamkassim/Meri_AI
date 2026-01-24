@@ -24,7 +24,10 @@ interface MapChatbotProps {
   /** Travel mode preference */
   mode?: 'walking' | 'taxi' | 'urgent';
   /** Callback when route is generated */
+  /** Callback when route is generated */
   onRouteGenerated?: (route: { start: string; end: string; steps: string[] }) => void;
+  /** Whether to render as an embedded panel instead of a floating widget */
+  embedded?: boolean;
 }
 
 // Default ASTU campus coordinates
@@ -36,7 +39,8 @@ const MapChatbot: React.FC<MapChatbotProps> = ({
   longitude = DEFAULT_LONGITUDE,
   selectedNodeName,
   mode = 'walking',
-  onRouteGenerated
+  onRouteGenerated,
+  embedded = false
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -94,8 +98,8 @@ const MapChatbot: React.FC<MapChatbotProps> = ({
           if (event.type === 'reasoning' && event.content) {
             setCurrentReasoning(prev => [...prev, event.content!]);
             // Update the streaming message with reasoning
-            setMessages(prev => prev.map(msg => 
-              msg.timestamp === streamingMsgId 
+            setMessages(prev => prev.map(msg =>
+              msg.timestamp === streamingMsgId
                 ? { ...msg, reasoning_steps: [...(msg.reasoning_steps || []), event.content!] }
                 : msg
             ));
@@ -104,16 +108,16 @@ const MapChatbot: React.FC<MapChatbotProps> = ({
       );
 
       // Replace streaming message with final response
-      setMessages(prev => prev.map(msg => 
-        msg.timestamp === streamingMsgId 
+      setMessages(prev => prev.map(msg =>
+        msg.timestamp === streamingMsgId
           ? {
-              ...msg,
-              content: response.answer,
-              intent: response.intent,
-              reasoning_steps: response.reasoning_steps,
-              sources: response.sources,
-              isStreaming: false
-            }
+            ...msg,
+            content: response.answer,
+            intent: response.intent,
+            reasoning_steps: response.reasoning_steps,
+            sources: response.sources,
+            isStreaming: false
+          }
           : msg
       ));
 
@@ -129,13 +133,13 @@ const MapChatbot: React.FC<MapChatbotProps> = ({
     } catch (error) {
       console.error('[MapChatbot] Error:', error);
       // Replace streaming message with error
-      setMessages(prev => prev.map(msg => 
-        msg.timestamp === streamingMsgId 
+      setMessages(prev => prev.map(msg =>
+        msg.timestamp === streamingMsgId
           ? {
-              ...msg,
-              content: 'I\'m having trouble getting that information. Please try again or check the map directly.',
-              isStreaming: false
-            }
+            ...msg,
+            content: 'I\'m having trouble getting that information. Please try again or check the map directly.',
+            isStreaming: false
+          }
           : msg
       ));
     } finally {
@@ -154,33 +158,48 @@ const MapChatbot: React.FC<MapChatbotProps> = ({
     return badges[intent || ''] || badges['UNIVERSITY_INFO'];
   };
 
-  // Floating button when chat is closed
-  if (!isOpen) {
+  // Floating button when chat is closed (Only if NOT embedded)
+  if (!embedded && !isOpen) {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 z-[1100] p-4 bg-emerald-600 text-white rounded-full shadow-2xl shadow-emerald-500/30 hover:bg-emerald-500 hover:scale-110 transition-all duration-300 group"
+        className="fixed bottom-6 right-6 z-[1100] pl-4 pr-5 py-3.5 bg-gradient-to-r from-emerald-600 to-teal-500 text-white rounded-full shadow-[0_10px_40px_-10px_rgba(16,185,129,0.5)] hover:shadow-[0_20px_40px_-10px_rgba(16,185,129,0.6)] hover:scale-105 active:scale-95 transition-all duration-300 group flex items-center gap-3 "
         aria-label="Open navigation assistant"
       >
-        <MessageCircle size={24} className="group-hover:hidden" />
-        <Navigation size={24} className="hidden group-hover:block" />
-        
+        <div className="relative">
+          <MessageCircle size={24} className="group-hover:opacity-0 transition-opacity duration-300 absolute inset-0" />
+          <Navigation size={24} className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 rotate-45 group-hover:rotate-0" />
+          {/* Static icon to hold space */}
+          <div className="w-6 h-6" />
+        </div>
+
+        <div className="flex flex-col items-start leading-none">
+          <span className="text-[10px] font-bold text-emerald-100 uppercase tracking-wider">Ask Meri</span>
+          <span className="text-sm font-bold">AI Assistant</span>
+        </div>
+
         {/* Pulse indicator */}
-        <span className="absolute top-0 right-0 w-3 h-3 bg-yellow-400 rounded-full animate-pulse" />
+        <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-400 rounded-full animate-ping opacity-75" />
+        <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white" />
       </button>
     );
   }
 
+  // Styles for embedded vs floating
+  const containerClasses = embedded
+    ? "flex flex-col h-full bg-slate-900 overflow-hidden" // Embedded: Fill parent, no rounded corners (handled by parent)
+    : `fixed bottom-6 right-6 z-[1100] w-[360px] max-w-[calc(100vw-48px)] bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl shadow-slate-900/50 flex flex-col transition-all duration-300 ${isMinimized ? 'h-14' : 'h-[480px] max-h-[70vh]'
+    }`;
+
   return (
-    <div 
-      className={`fixed bottom-6 right-6 z-[1100] w-[360px] max-w-[calc(100vw-48px)] bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl shadow-slate-900/50 flex flex-col transition-all duration-300 ${
-        isMinimized ? 'h-14' : 'h-[480px] max-h-[70vh]'
-      }`}
-    >
+    <div className={containerClasses}>
       {/* Header */}
-      <div 
-        className="px-4 py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 rounded-t-2xl flex items-center justify-between cursor-pointer"
-        onClick={() => setIsMinimized(!isMinimized)}
+      <div
+        className={`px-4 py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 flex items-center justify-between ${
+          // Only add rounded top if NOT embedded (or if you want rounding in embedded too, but usually parent handles it)
+          !embedded ? "rounded-t-2xl cursor-pointer" : ""
+          }`}
+        onClick={() => !embedded && setIsMinimized(!isMinimized)}
       >
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
@@ -194,32 +213,36 @@ const MapChatbot: React.FC<MapChatbotProps> = ({
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-1">
-          <button 
-            onClick={(e) => { e.stopPropagation(); setIsMinimized(!isMinimized); }}
-            className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
-          >
-            {isMinimized ? <ChevronUp size={16} className="text-white" /> : <ChevronDown size={16} className="text-white" />}
-          </button>
-          <button 
-            onClick={(e) => { e.stopPropagation(); setIsOpen(false); }}
-            className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
-          >
-            <X size={16} className="text-white" />
-          </button>
-        </div>
+
+        {/* Only show controls if NOT embedded */}
+        {!embedded && (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={(e) => { e.stopPropagation(); setIsMinimized(!isMinimized); }}
+              className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+            >
+              {isMinimized ? <ChevronUp size={16} className="text-white" /> : <ChevronDown size={16} className="text-white" />}
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); setIsOpen(false); }}
+              className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+            >
+              <X size={16} className="text-white" />
+            </button>
+          </div>
+        )}
       </div>
 
-      {!isMinimized && (
+      {(!isMinimized || embedded) && (
         <>
           {/* Location Context Banner */}
           {(latitude && longitude) || selectedNodeName ? (
             <div className="px-4 py-2 bg-slate-800/50 border-b border-slate-700/50 flex items-center gap-2">
               <MapPin size={12} className="text-emerald-400" />
               <span className="text-[10px] text-slate-400">
-                {selectedNodeName 
-                  ? `Selected: ${selectedNodeName}` 
-                  : latitude && longitude 
+                {selectedNodeName
+                  ? `Selected: ${selectedNodeName}`
+                  : latitude && longitude
                     ? `Location: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`
                     : 'No location set'
                 }
@@ -232,9 +255,8 @@ const MapChatbot: React.FC<MapChatbotProps> = ({
             {messages.map((msg, i) => (
               <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`flex gap-2 max-w-[85%] ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                  <div className={`p-1.5 rounded-lg flex-shrink-0 h-fit ${
-                    msg.role === 'user' ? 'bg-slate-700 text-slate-300' : 'bg-emerald-500 text-white'
-                  }`}>
+                  <div className={`p-1.5 rounded-lg flex-shrink-0 h-fit ${msg.role === 'user' ? 'bg-slate-700 text-slate-300' : 'bg-emerald-500 text-white'
+                    }`}>
                     {msg.role === 'user' ? <User size={12} /> : msg.isStreaming ? <Loader2 size={12} className="animate-spin" /> : <Bot size={12} />}
                   </div>
                   <div className="flex flex-col gap-1">
@@ -267,15 +289,14 @@ const MapChatbot: React.FC<MapChatbotProps> = ({
                         )}
                       </div>
                     ) : (
-                      <div className={`px-3 py-2 rounded-xl text-sm leading-relaxed ${
-                        msg.role === 'user'
-                          ? 'bg-slate-700 text-white rounded-tr-sm'
-                          : 'bg-slate-800 text-slate-200 rounded-tl-sm border border-slate-700'
-                      }`}>
+                      <div className={`px-3 py-2 rounded-xl text-sm leading-relaxed ${msg.role === 'user'
+                        ? 'bg-slate-700 text-white rounded-tr-sm'
+                        : 'bg-slate-800 text-slate-200 rounded-tl-sm border border-slate-700'
+                        }`}>
                         {msg.content}
                       </div>
                     )}
-                    
+
                     {/* Intent badge and reasoning toggle for assistant messages */}
                     {msg.role === 'assistant' && msg.intent && !msg.isStreaming && (
                       <div className="flex items-center gap-2 ml-1">
@@ -288,9 +309,9 @@ const MapChatbot: React.FC<MapChatbotProps> = ({
                             </span>
                           );
                         })()}
-                        
+
                         {msg.reasoning_steps && msg.reasoning_steps.length > 0 && (
-                          <button 
+                          <button
                             onClick={() => setShowReasoning(showReasoning === i ? null : i)}
                             className="text-[9px] text-slate-500 hover:text-slate-300 transition-colors"
                           >
@@ -299,7 +320,7 @@ const MapChatbot: React.FC<MapChatbotProps> = ({
                         )}
                       </div>
                     )}
-                    
+
                     {/* Reasoning steps */}
                     {showReasoning === i && msg.reasoning_steps && !msg.isStreaming && (
                       <div className="ml-1 mt-1 p-2 bg-slate-800/50 rounded-lg border border-slate-700/50">

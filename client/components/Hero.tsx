@@ -39,7 +39,7 @@ const Hero: React.FC = () => {
           <span className="text-emerald-600">ASTU Campus.</span>
         </h1>
 
-        <p className="text-base md:text-lg text-slate-500 leading-relaxed max-w-xl mb-10 md:mb-12">
+        <p className="text-base md:text-lg text-slate-700 leading-relaxed max-w-xl mb-10 md:mb-12">
           Find any facility or department across the Adama Science and Technology University with our official navigation engine.
         </p>
 
@@ -63,9 +63,9 @@ const Hero: React.FC = () => {
         </form>
 
         <div className="flex flex-wrap gap-x-16 gap-y-4 pt-12 border-t border-slate-100">
-          <span className="text-xs font-bold uppercase tracking-widest text-slate-400">100% Campus Coverage</span>
-          <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Live AI Reasoning</span>
-          <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Secure Academic Data</span>
+          <span className="text-xs font-bold uppercase tracking-widest text-slate-700">100% Campus Coverage</span>
+          <span className="text-xs font-bold uppercase tracking-widest text-slate-700">Live AI Reasoning</span>
+          <span className="text-xs font-bold uppercase tracking-widest text-slate-700">Secure Academic Data</span>
         </div>
       </div>
     </div>

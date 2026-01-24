@@ -83,7 +83,7 @@ const MapDisplay: React.FC<MapDisplayProps> = ({ selectedNodeId }) => {
     : [];
 
   return (
-    <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/40 overflow-hidden flex flex-col h-full border-t-8 border-t-emerald-600">
+    <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/40 overflow-hidden flex flex-col h-full ">
       {/* Header Panel */}
       <div className="p-6 border-b border-slate-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white">
         <div>
