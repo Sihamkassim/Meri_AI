@@ -1,15 +1,13 @@
 import type { NextConfig } from "next";
 const withPWA = require("next-pwa")({
   dest: "public",
-  disable: process.env.NODE_ENV === "production", // ⬅️ important
+  register: true,
+  skipWaiting: true,
+  disable: false, // ✅ ALWAYS ENABLE
 });
 
 const nextConfig: NextConfig = {
   reactStrictMode: false,
-  output: "export",
-  images: {
-    unoptimized: true,
-  },
 };
 
 export default withPWA(nextConfig);
