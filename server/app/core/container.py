@@ -65,7 +65,8 @@ class ServiceContainer:
         if self._routing is None:
             db = self.get_database()
             vector = self.get_vector_service()
-            self._routing = RoutingService(db, vector)
+            osm = self.get_osm_service()  # Inject OSM service
+            self._routing = RoutingService(db, vector, osm)
         return self._routing
     
     # RAG Service

@@ -3,8 +3,9 @@ app/services/routing_service.py
 Navigation and routing logic for campus and nearby services.
 """
 import math
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 from app.services.interfaces import IRoutingService, IDatabase, IVectorService
+from app.services.osm_service import OSMService
 from app.core.exceptions import LocationNotFound, RouteCalculationError
 from app.core.logging_config import routing_logger
 
@@ -12,16 +13,39 @@ from app.core.logging_config import routing_logger
 class RoutingService(IRoutingService):
     """Campus navigation and routing service"""
     
-    def __init__(self, db_service: IDatabase, vector_service: IVectorService):
+    def __init__(self, db_service: IDatabase, vector_service: IVectorService, osm_service: Optional[OSMService] = None):
         """
         Initialize with dependencies.
         Args:
             db_service: Database for POI lookups
             vector_service: Vector search for location fuzzy matching
+            osm_service: OSM service for actual route calculation
         """
         self.db = db_service
         self.vector = vector_service
+        self.osm = osm_service
     
+    def get_route(self, start_lat: float, start_lng: float, 
+                 end_lat: float, end_lng: float, mode: str = "walking") -> Optional[Dict[str, Any]]:
+        """
+        Get real OSM route between two points
+        
+        Args:
+            start_lat: Start latitude
+            start_lng: Start longitude
+            end_lat: End latitude
+            end_lng: End longitude
+            mode: Navigation mode (walking/driving)
+            
+        Returns:
+            Route details or None if calculation fails
+        """
+        if self.osm:
+            return self.osm.get_route(start_lat, start_lng, end_lat, end_lng, mode)
+        
+        routing_logger.warning("OSMService not available in RoutingService, falling back to straight line (return None)")
+        return None
+
     def _haversine_distance(self, lat1: float, lon1: float, 
                            lat2: float, lon2: float) -> float:
         """Calculate distance between two coordinates in kilometers"""

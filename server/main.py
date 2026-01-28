@@ -18,7 +18,7 @@ from config import settings
 from app.core.logging_config import logger, setup_logging
 from app.core.exceptions import AstuRouteException
 from app.core.container import container
-from app.routers import health, query, route, nearby, ai, osm, map as map_router
+from app.routers import health, query, route, nearby, ai, osm, map as map_router, location
 import logging
 
 # Setup logging
@@ -143,6 +143,7 @@ from app.routers import health, query, route, nearby, ai, osm, admin
 app.include_router(health.router)
 app.include_router(admin.router)  # Admin dashboard APIs
 app.include_router(ai.router)  # New LangGraph-based unified router
+app.include_router(location.router)  # Location tracking SSE
 app.include_router(osm.router)  # OSM routing
 app.include_router(query.router)
 app.include_router(route.router)

@@ -7,11 +7,23 @@ import { CampusNode, UserLocation } from '../types';
 import { Layers, Maximize2, Navigation2, Info, MapPin, Globe, Map as MapIcon, Locate, Loader2 } from 'lucide-react';
 
 // Marker Icons setup (Academic style)
-const createIcon = (color: string) => L.divIcon({
-  html: `<div style="background-color: ${color}; width: 12px; height: 12px; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 0 2px rgba(0,0,0,0.05);"></div>`,
-  className: 'custom-div-icon',
-  iconSize: [12, 12],
-  iconAnchor: [6, 6]
+const createIcon = (color: string, emoji: string = '📍') => L.divIcon({
+  html: `
+    <div style="position: relative; width: 32px; height: 40px;">
+      <svg width="32" height="40" viewBox="0 0 32 40" xmlns="http://www.w3.org/2000/svg">
+        <path d="M16 0C9.373 0 4 5.373 4 12c0 8 12 28 12 28s12-20 12-28c0-6.627-5.373-12-12-12z" 
+              fill="${color}" 
+              stroke="white" 
+              stroke-width="2"/>
+        <circle cx="16" cy="12" r="5" fill="white" opacity="0.9"/>
+      </svg>
+      <div style="position: absolute; top: 4px; left: 50%; transform: translateX(-50%); font-size: 14px;">${emoji}</div>
+    </div>
+  `,
+  className: 'custom-pin-icon',
+  iconSize: [32, 40],
+  iconAnchor: [16, 40],
+  popupAnchor: [0, -40]
 });
 
 // User location icon with pulsing animation
@@ -34,20 +46,36 @@ const userLocationIcon = L.divIcon({
 });
 
 const icons: Record<string, L.DivIcon> = {
-  academic: createIcon('#059669'), // Emerald
-  administrative: createIcon('#475569'), // Slate
-  residential: createIcon('#0891b2'), // Cyan
-  amenity: createIcon('#9333ea'), // Purple
-  gate: createIcon('#dc2626'), // Red
-  service: createIcon('#f59e0b'), // Amber - for city services
-  building: createIcon('#3b82f6'), // Blue - for buildings
-  library: createIcon('#8b5cf6'), // Violet - for libraries
-  general: createIcon('#64748b'), // Slate gray - for general
-  default: createIcon('#059669'), // Default fallback
+  academic: createIcon('#10b981', '🎓'), // Emerald with graduation cap
+  administrative: createIcon('#6366f1', '🏛️'), // Indigo with building
+  residential: createIcon('#0ea5e9', '🏠'), // Sky blue with house
+  amenity: createIcon('#a855f7', '🍽️'), // Purple with dining
+  gate: createIcon('#ef4444', '🚪'), // Red with door
+  service: createIcon('#f59e0b', '⚙️'), // Amber with gear
+  building: createIcon('#3b82f6', '🏢'), // Blue with office building
+  library: createIcon('#8b5cf6', '📚'), // Violet with books
+  general: createIcon('#64748b', '📍'), // Slate with pin
+  default: createIcon('#10b981', '📍'), // Default fallback
+};
+
+// Category metadata for dynamic legend
+const categoryInfo: Record<string, { color: string; emoji: string; label: string }> = {
+  academic: { color: '#10b981', emoji: '🎓', label: 'Academic' },
+  administrative: { color: '#6366f1', emoji: '🏛️', label: 'Administration' },
+  residential: { color: '#0ea5e9', emoji: '🏠', label: 'Residential' },
+  amenity: { color: '#a855f7', emoji: '🍽️', label: 'Amenities' },
+  gate: { color: '#ef4444', emoji: '🚪', label: 'Entry Gates' },
+  service: { color: '#f59e0b', emoji: '⚙️', label: 'City Services' },
+  building: { color: '#3b82f6', emoji: '🏢', label: 'Buildings' },
+  library: { color: '#8b5cf6', emoji: '📚', label: 'Libraries' },
+  general: { color: '#64748b', emoji: '📍', label: 'General' },
 };
 
 interface MapDisplayProps {
   selectedNodeId?: string;
+  routeCoords?: Array<{ lat: number; lng: number }>;
+  startCoords?: { lat: number; lon: number; name: string };
+  endCoords?: { lat: number; lon: number; name: string };
 }
 
 // Component to handle map view updates and auto-fit to POIs
@@ -71,7 +99,7 @@ const MapController: React.FC<{ selectedNode?: CampusNode; nodes: CampusNode[] }
   return null;
 };
 
-const MapDisplay: React.FC<MapDisplayProps> = ({ selectedNodeId }) => {
+const MapDisplay: React.FC<MapDisplayProps> = ({ selectedNodeId, routeCoords, startCoords, endCoords }) => {
 
   const [filter, setFilter] = useState<string | 'all'>('all');
   const [routeMode, setRouteMode] = useState<'walking' | 'taxi' | 'urgent'>('walking');
@@ -82,6 +110,7 @@ const MapDisplay: React.FC<MapDisplayProps> = ({ selectedNodeId }) => {
   const [campusNodes, setCampusNodes] = useState<CampusNode[]>([]);
   const [campusBoundary, setCampusBoundary] = useState<[number, number][]>([]);
   const [loadingMap, setLoadingMap] = useState(true);
+  const [showLegend, setShowLegend] = useState(false);
 
   console.log('[MapDisplay] Component mounted/rendered');
 
@@ -95,7 +124,12 @@ const MapDisplay: React.FC<MapDisplayProps> = ({ selectedNodeId }) => {
     console.log('[MapDisplay] Fetching POIs from:', fetchUrl);
     setLoadingMap(true);
     
-    fetch(fetchUrl)
+    fetch(fetchUrl, {
+      mode: 'cors',
+      headers: {
+        'Accept': 'application/json',
+      },
+    })
       .then(res => {
         console.log('[MapDisplay] Response status:', res.status);
         if (!res.ok) {
@@ -276,10 +310,29 @@ const MapDisplay: React.FC<MapDisplayProps> = ({ selectedNodeId }) => {
       ]
     : [8.5520, 39.2850]; // Default ASTU center
 
-  // Simple route simulation between first two connected nodes
-  const activeRouteCoords: [number, number][] = selectedNodeId === 'library'
-    ? [[8.5420, 39.2710], [8.5415, 39.2700], [8.5410, 39.2680], [8.5400, 39.2695]]
+  // Convert route coordinates from API format to Leaflet format
+  const activeRouteCoords: [number, number][] = routeCoords
+    ? routeCoords.map(coord => {
+        if (!coord || typeof coord.lat !== 'number' || typeof coord.lng !== 'number') {
+          console.error('[MapDisplay] Invalid coordinate:', coord);
+          return null;
+        }
+        return [coord.lat, coord.lng] as [number, number];
+      }).filter((c): c is [number, number] => c !== null)
     : [];
+
+  console.log('[MapDisplay] ===== ROUTE DEBUG =====');
+  console.log('[MapDisplay] Props received:', { 
+    routeCoordsCount: routeCoords?.length, 
+    startCoords, 
+    endCoords 
+  });
+  console.log('[MapDisplay] routeCoords raw:', routeCoords);
+  console.log('[MapDisplay] Active route coords:', activeRouteCoords);
+  console.log('[MapDisplay] Will render route:', activeRouteCoords.length > 0);
+  console.log('[MapDisplay] First coord:', activeRouteCoords[0]);
+  console.log('[MapDisplay] Last coord:', activeRouteCoords[activeRouteCoords.length - 1]);
+  console.log('[MapDisplay] =======================');
 
   if (loadingMap) {
     return (
@@ -292,7 +345,7 @@ const MapDisplay: React.FC<MapDisplayProps> = ({ selectedNodeId }) => {
   }
 
   return (
-    <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/40 overflow-hidden flex flex-col h-full border-t-8 border-t-emerald-600">
+    <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/40 overflow-hidden flex flex-col h-full ">
       {/* Header Panel */}
       <div className="p-4 md:p-6 border-b border-slate-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white">
         <div>
@@ -446,16 +499,57 @@ const MapDisplay: React.FC<MapDisplayProps> = ({ selectedNodeId }) => {
 
           {/* Active Route Visualization */}
           {activeRouteCoords.length > 0 && (
-            <Polyline
-              positions={activeRouteCoords}
-              pathOptions={{
-                color: '#059669',
-                weight: 5,
-                opacity: 0.8,
-                lineCap: 'round',
-                lineJoin: 'round'
-              }}
-            />
+            <>
+              <Polyline
+                positions={activeRouteCoords}
+                pathOptions={{
+                  color: '#3b82f6',
+                  weight: 6,
+                  opacity: 0.85,
+                  lineCap: 'round',
+                  lineJoin: 'round',
+                  dashArray: '0'
+                }}
+              />
+              {/* Start marker */}
+              {startCoords && (
+                <Marker
+                  position={[startCoords.lat, startCoords.lon]}
+                  icon={L.divIcon({
+                    html: `<div style="background: linear-gradient(135deg, #10b981, #059669); width: 16px; height: 16px; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>`,
+                    className: 'route-start-marker',
+                    iconSize: [16, 16],
+                    iconAnchor: [8, 8]
+                  })}
+                >
+                  <Popup>
+                    <div className="text-sm">
+                      <div className="font-bold text-emerald-700">📍 Start</div>
+                      <div className="text-slate-600">{startCoords.name}</div>
+                    </div>
+                  </Popup>
+                </Marker>
+              )}
+              {/* End marker */}
+              {endCoords && (
+                <Marker
+                  position={[endCoords.lat, endCoords.lon]}
+                  icon={L.divIcon({
+                    html: `<div style="background: linear-gradient(135deg, #ef4444, #dc2626); width: 16px; height: 16px; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>`,
+                    className: 'route-end-marker',
+                    iconSize: [16, 16],
+                    iconAnchor: [8, 8]
+                  })}
+                >
+                  <Popup>
+                    <div className="text-sm">
+                      <div className="font-bold text-red-700">🎯 Destination</div>
+                      <div className="text-slate-600">{endCoords.name}</div>
+                    </div>
+                  </Popup>
+                </Marker>
+              )}
+            </>
           )}
 
           <MapController selectedNode={selectedNode} nodes={campusNodes} />
@@ -491,17 +585,62 @@ const MapDisplay: React.FC<MapDisplayProps> = ({ selectedNodeId }) => {
           </button>
         </div>
 
-        {/* Legend Overlay */}
-        <div className="absolute bottom-3 right-3 sm:bottom-6 sm:right-6 z-[1000] hidden sm:flex flex-col gap-2">
-          <div className="bg-white/90 backdrop-blur-md border border-slate-100 p-4 rounded-2xl shadow-xl shadow-slate-200/20 max-w-[180px]">
-            <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-3">Map Legend</h4>
-            <div className="space-y-2">
-              <LegendItem color="#059669" label="Academic" />
-              <LegendItem color="#475569" label="Admin" />
-              <LegendItem color="#dc2626" label="Entry Gate" />
-              <LegendItem color="#9333ea" label="City Service" />
+        {/* Legend Toggle Button & Popup */}
+        <div className="absolute bottom-3 right-3 sm:bottom-6 sm:right-6 z-[1000] flex flex-col items-end gap-2">
+          {/* Legend Popup */}
+          {showLegend && (
+            <div className="bg-white/95 backdrop-blur-md border border-slate-200 p-4 rounded-2xl shadow-xl max-w-[200px] animate-in fade-in slide-in-from-bottom-2 duration-200">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-600">Map Legend</h4>
+                <button
+                  onClick={() => setShowLegend(false)}
+                  className="text-slate-400 hover:text-slate-600 transition-colors"
+                  aria-label="Close legend"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              </div>
+              <div className="space-y-2.5">
+                {(() => {
+                  // Get unique categories from campus nodes
+                  const uniqueCategories = Array.from(new Set(campusNodes.map(n => n.category || 'general')));
+                  return uniqueCategories.map(category => {
+                    const info = categoryInfo[category] || { color: '#64748b', emoji: '📍', label: category };
+                    return (
+                      <div key={category} className="flex items-center gap-2">
+                        <div style={{ position: 'relative', width: '24px', height: '30px', flexShrink: 0 }}>
+                          <svg width="24" height="30" viewBox="0 0 32 40" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M16 0C9.373 0 4 5.373 4 12c0 8 12 28 12 28s12-20 12-28c0-6.627-5.373-12-12-12z" 
+                                  fill={info.color} 
+                                  stroke="white" 
+                                  strokeWidth="2"/>
+                            <circle cx="16" cy="12" r="5" fill="white" opacity="0.9"/>
+                          </svg>
+                          <div style={{ position: 'absolute', top: '3px', left: '50%', transform: 'translateX(-50%)', fontSize: '11px' }}>
+                            {info.emoji}
+                          </div>
+                        </div>
+                        <span className="text-[11px] font-medium text-slate-700">{info.label}</span>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
             </div>
-          </div>
+          )}
+          
+          {/* Legend Toggle Button */}
+          <button
+            onClick={() => setShowLegend(!showLegend)}
+            title="Toggle map legend"
+            className="px-4 py-2.5 text-xs font-bold bg-white/95 backdrop-blur-md border border-slate-200 rounded-xl shadow-lg outline-none transition-all flex items-center gap-2 hover:bg-white hover:border-emerald-300"
+          >
+            <MapIcon size={14} className="text-slate-600" />
+            <span className="hidden sm:inline">Legend</span>
+          </button>
         </div>
 
         {/* Distance Indicator (Simplified) */}

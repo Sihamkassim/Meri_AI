@@ -17,7 +17,8 @@ class GeminiAIService(IAIService):
     def __init__(self):
         self.api_key = settings.ai_api_key
         self.model = settings.ai_model
-        self.voyage_api_key = settings.voyage_api_key
+        self.voyage_api_key = settings.voyage_api_key  # For document embeddings
+        self.voyage_poi_api_key = settings.voyage_poi_api_key  # For POI embeddings
         self.embedding_model = "voyage-2"  # Voyage AI model
         self.timeout = settings.ai_stream_timeout
         self.base_url = "https://generativelanguage.googleapis.com/v1beta"
@@ -42,18 +43,30 @@ class GeminiAIService(IAIService):
             await self._client.aclose()
             self._client = None
     
-    async def generate_embedding(self, text: str) -> List[float]:
+    async def generate_embedding(self, text: str, use_poi_key: bool = False) -> List[float]:
         """
         Generate embedding for text using Voyage AI.
         Returns 1024-dimensional vector from voyage-2 model (optimized for RAG).
+        
+        Args:
+            text: Text to embed
+            use_poi_key: If True, uses VOYAGE_POI_API_KEY for POI embeddings
         """
         try:
             client = await self._get_client()
             
+            # Select appropriate API key
+            api_key = self.voyage_poi_api_key if use_poi_key else self.voyage_api_key
+            
+            if not api_key:
+                raise AIServiceException(
+                    f"{'POI' if use_poi_key else 'Document'} Voyage API key not configured"
+                )
+            
             response = await client.post(
                 f"{self.voyage_url}/embeddings",
                 headers={
-                    "Authorization": f"Bearer {self.voyage_api_key}",
+                    "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json"
                 },
                 json={
@@ -69,7 +82,8 @@ class GeminiAIService(IAIService):
             
             data = response.json()
             embedding = data["data"][0]["embedding"]
-            ai_logger.info(f"Generated Voyage embedding (dim={len(embedding)}) for text (len={len(text)})")
+            key_type = "POI" if use_poi_key else "DOC"
+            ai_logger.info(f"Generated Voyage embedding [{key_type}] (dim={len(embedding)}) for text (len={len(text)})")
             return embedding
             
         except httpx.RequestError as e:

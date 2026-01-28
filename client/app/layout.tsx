@@ -5,14 +5,14 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "ASTU Route AI | Official Campus Navigator",
+  title: "መሪ AI - Campus Navigator",
   description: "Find any facility or department across the Adama Science and Technology University with our official navigation engine.",
   manifest: "/manifest.json",
   themeColor: "#10b981",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "ASTU Route",
+    title: "መሪ AI",
   },
   viewport: {
     width: "device-width",

@@ -91,6 +91,12 @@ class IRoutingService(ABC):
     """Abstract routing/navigation service"""
     
     @abstractmethod
+    def get_route(self, start_lat: float, start_lng: float, 
+                 end_lat: float, end_lng: float, mode: str = "walking") -> Optional[Dict[str, Any]]:
+        """Get real OSM route between two points"""
+        pass
+    
+    @abstractmethod
     async def find_route(self, start_name: str, end_name: str, 
                         urgency: str = "normal") -> Dict[str, Any]:
         """Calculate route between two locations"""
