@@ -153,9 +153,20 @@ app.include_router(map_router.router)  # New campus map router
 # Mount static files (admin dashboard) - only if directory exists
 import os
 from pathlib import Path
+@app.get("/", response_class=JSONResponse)
+async def root():
+    """Return a simple JSON welcome page at the root route."""
+    return JSONResponse(status_code=200, content={
+        "message": "Welcome to ASTU Route AI",
+        "status": "ok",
+        "api_version": "0.1.0"
+      
+    })
+
 public_dir = Path("public")
 if public_dir.exists() and public_dir.is_dir():
-    app.mount("/", StaticFiles(directory="public", html=True), name="static")
+    # Serve the admin UI from /admin instead of root
+    app.mount("/admin", StaticFiles(directory="public", html=True), name="admin_static")
 
 
 if __name__ == "__main__":

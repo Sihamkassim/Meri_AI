@@ -1,5 +1,8 @@
 // ASTU Route AI - Admin Dashboard JavaScript
-const API_BASE = (typeof process !== 'undefined' && process.env.API_BASE) || 'http://localhost:4000';
+// Use same-origin relative API paths by default. If you need an absolute API base
+// (different host/port), set `window.__API_BASE__ = 'https://host:port'` before this
+// script runs (e.g., injected from server-side template or a small inline script).
+const API_BASE = (typeof window !== 'undefined' && window.__API_BASE__) ? window.__API_BASE__ : '';
 let map = null;
 let poiMap = null;
 let testRouteMap = null;  // NEW: Dedicated map for Test AI route visualization
@@ -470,7 +473,7 @@ async function loadPOIs() {
                             <button onclick="editPOI(${poi.id})" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded transition" title="Edit POI">
                                 ✏️ Edit
                             </button>
-                            <button onclick="deletePOI(${poi.id}, ${JSON.stringify(poi.name)})" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm rounded transition" title="Delete POI">
+                            <button onclick='deletePOI(${poi.id}, ${JSON.stringify(poi.name)})' class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm rounded transition" title="Delete POI">
                                 🗑️ Delete
                             </button>
                         </div>
@@ -659,11 +662,11 @@ async function loadDocuments() {
                             <p class="text-xs text-gray-400 mt-2">${new Date(doc.created_at).toLocaleDateString()}</p>
                         </div>
                         <div class="flex gap-2 ml-4">
-                            <button onclick="editDocument(${doc.id}, ${JSON.stringify(doc.title)}, ${JSON.stringify(doc.content)}, ${JSON.stringify(doc.source || '')})" 
+                            <button onclick='editDocument(${doc.id}, ${JSON.stringify(doc.title)}, ${JSON.stringify(doc.content)}, ${JSON.stringify(doc.source || '')})' 
                                 class="text-blue-600 hover:text-blue-800 px-3 py-1 text-sm">
                                 ✏️ Edit
                             </button>
-                            <button onclick="deleteDocument(${doc.id}, ${JSON.stringify(doc.title)})" 
+                            <button onclick='deleteDocument(${doc.id}, ${JSON.stringify(doc.title)})' 
                                 class="text-red-600 hover:text-red-800 px-3 py-1 text-sm">
                                 🗑️ Delete
                             </button>
