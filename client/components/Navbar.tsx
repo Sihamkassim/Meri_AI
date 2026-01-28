@@ -127,7 +127,7 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentRoute }) => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
           <div className="bg-white max-w-xl w-full mx-4 rounded-2xl shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b">
-              <h3 className="text-lg font-bold">Built by the Divas</h3>
+              <h3 className="text-lg font-bold">Built by the Divas 💫</h3>
               <button onClick={() => setShowAbout(false)} className="text-slate-600 hover:text-slate-900">✕</button>
             </div>
             <div className="p-6 space-y-4 text-sm text-slate-700">
