@@ -1,4 +1,5 @@
 <svg width="192" height="192" xmlns="http://www.w3.org/2000/svg">
   <rect width="192" height="192" fill="#10b981"/>
   <text x="50%" y="50%" font-size="80" fill="white" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-weight="bold">AR</text>
-</svg>
+    <text x="50%" y="50%" font-size="86" fill="white" text-anchor="middle" dominant-baseline="middle" font-family="\"Noto Sans Ethiopic\", \"Segoe UI Emoji\", Arial, sans-serif" font-weight="700">መሪ</text>
+  </svg>
