@@ -53,11 +53,30 @@ async def response_composer_node(state: GraphState) -> Dict[str, Any]:
     
     logger.info(f"[ResponseComposerNode] Composed {intent} response")
     
-    return {
+    # Pass through geospatial data for frontend visualization
+    response_data = {
         "final_answer": final_answer,
         "sources_used": sources,
-        "reasoning_stream": reasoning_stream
+        "reasoning_stream": reasoning_stream,
+        # Pass through vital metadata for frontend
+        "intent": intent,
+        "start_coordinates": state.get("start_coordinates"),
+        "end_coordinates": state.get("end_coordinates"),
+        "distance_estimate": state.get("distance_estimate"),
+        "route_coords": state.get("route_coords"),
+        # Confidence metrics
+        "rag_confidence": state.get("rag_confidence"),
+        "geo_confidence": state.get("geo_confidence")
     }
+        # Debug logging for route_coords
+    route_coords_from_state = state.get("route_coords")
+    logger.info(f"[ResponseComposerNode] route_coords from state: {type(route_coords_from_state)} with {len(route_coords_from_state) if route_coords_from_state and isinstance(route_coords_from_state, list) else 0} waypoints")
+        # Debug logging
+    route_coords_from_state = state.get("route_coords")
+    logger.info(f"[ResponseComposerNode] route_coords from state: {type(route_coords_from_state)} = {route_coords_from_state[:2] if route_coords_from_state and isinstance(route_coords_from_state, list) else route_coords_from_state}")
+    logger.info(f"[ResponseComposerNode] response_data keys: {list(response_data.keys())}")
+    
+    return response_data
 
 
 def _compose_navigation_response(state: GraphState) -> str:

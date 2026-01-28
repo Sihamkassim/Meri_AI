@@ -59,37 +59,64 @@ class VectorSearchService(IVectorService):
     
     async def search_pois(self, query: str, limit: int = 10) -> List[POI]:
         """
-        Search POIs by semantic relevance.
+        Search POIs by semantic relevance using Voyage embeddings.
         
-        Note: For MVP, uses category/tag matching.
-        Future: Can be enhanced with full vector search on POI descriptions.
+        Falls back to category matching if embeddings not available.
         """
         try:
             vector_logger.info(f"Searching POIs for: {query}")
             
-            # For now, search by category keywords
-            # Example: "laboratory" -> category "lab"
-            keywords = query.lower().split()
+            # Try semantic search first (skip if rate limited)
+            try:
+                # Generate query embedding using POI-specific Voyage key
+                query_embedding = await self.ai.generate_embedding(query, use_poi_key=True)
+                
+                # Use synchronous database method (pgvector search)
+                results = self.db.semantic_search_pois(query_embedding, limit=limit)
+                
+                if results:
+                    pois = [
+                        POI(
+                            id=r["id"],
+                            name=r["name"],
+                            category=r["category"],
+                            latitude=r["latitude"],
+                            longitude=r["longitude"],
+                            description=r.get("description"),
+                            tags=r.get("tags"),
+                            similarity=r["similarity"]
+                        )
+                        for r in results
+                    ]
+                    vector_logger.info(f"Found {len(pois)} POIs via semantic search (best: {pois[0].similarity:.2f})")
+                    return pois
+                    
+            except Exception as e:
+                vector_logger.warning(f"Semantic POI search failed, using text-based fallback: {e}")
             
-            pois = []
-            for keyword in keywords:
-                # Search by category
-                matching = self.db.get_pois_by_category(keyword, limit=limit)
-                pois.extend([
+            # Fallback: Enhanced text-based search (name, category, description)
+            try:
+                results = self.db.search_pois_by_text(query, limit=limit)
+                
+                pois = [
                     POI(
-                        id=p["id"],
-                        name=p["name"],
-                        category=p["category"],
-                        latitude=p["latitude"],
-                        longitude=p["longitude"],
-                        description=p.get("description"),
-                        tags=p.get("tags")
+                        id=r["id"],
+                        name=r["name"],
+                        category=r["category"],
+                        latitude=r["latitude"],
+                        longitude=r["longitude"],
+                        description=r.get("description"),
+                        tags=r.get("tags")
                     )
-                    for p in matching
-                ])
-            
-            vector_logger.info(f"Found {len(pois)} POIs")
-            return pois[:limit]
+                    for r in results
+                ]
+                
+                vector_logger.info(f"Found {len(pois)} POIs via text search")
+                return pois
+                
+            except Exception as e:
+                vector_logger.error(f"Text-based search failed: {e}")
+                return []
             
         except Exception as e:
             raise VectorSearchError(f"POI search failed: {str(e)}")

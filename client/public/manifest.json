@@ -1,6 +1,6 @@
 {
-  "name": "ASTU Route AI - Campus Navigator",
-  "short_name": "ASTU Route",
+  "name": "መሪ AI - Campus Navigator",
+  "short_name": "መሪ AI",
   "description": "Find any facility or department across the Adama Science and Technology University with our official navigation engine.",
   "start_url": "/",
   "display": "standalone",
@@ -9,15 +9,15 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/icon-192x192.png",
+      "src": "/icon-192x192.svg",
       "sizes": "192x192",
-      "type": "image/png",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     },
     {
-      "src": "/icon-512x512.png",
+      "src": "/icon-512x512.svg",
       "sizes": "512x512",
-      "type": "image/png",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     }
   ]

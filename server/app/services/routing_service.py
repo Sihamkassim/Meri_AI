@@ -3,8 +3,9 @@ app/services/routing_service.py
 Navigation and routing logic for campus and nearby services.
 """
 import math
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 from app.services.interfaces import IRoutingService, IDatabase, IVectorService
+from app.services.osm_service import OSMService
 from app.core.exceptions import LocationNotFound, RouteCalculationError
 from app.core.logging_config import routing_logger
 
@@ -12,16 +13,39 @@ from app.core.logging_config import routing_logger
 class RoutingService(IRoutingService):
     """Campus navigation and routing service"""
     
-    def __init__(self, db_service: IDatabase, vector_service: IVectorService):
+    def __init__(self, db_service: IDatabase, vector_service: IVectorService, osm_service: Optional[OSMService] = None):
         """
         Initialize with dependencies.
         Args:
             db_service: Database for POI lookups
             vector_service: Vector search for location fuzzy matching
+            osm_service: OSM service for actual route calculation
         """
         self.db = db_service
         self.vector = vector_service
+        self.osm = osm_service
     
+    def get_route(self, start_lat: float, start_lng: float, 
+                 end_lat: float, end_lng: float, mode: str = "walking") -> Optional[Dict[str, Any]]:
+        """
+        Get real OSM route between two points
+        
+        Args:
+            start_lat: Start latitude
+            start_lng: Start longitude
+            end_lat: End latitude
+            end_lng: End longitude
+            mode: Navigation mode (walking/driving)
+            
+        Returns:
+            Route details or None if calculation fails
+        """
+        if self.osm:
+            return self.osm.get_route(start_lat, start_lng, end_lat, end_lng, mode)
+        
+        routing_logger.warning("OSMService not available in RoutingService, falling back to straight line (return None)")
+        return None
+
     def _haversine_distance(self, lat1: float, lon1: float, 
                            lat2: float, lon2: float) -> float:
         """Calculate distance between two coordinates in kilometers"""
@@ -126,7 +150,7 @@ class RoutingService(IRoutingService):
     async def find_nearby_services(self, latitude: float, longitude: float,
                                    service_type: str, radius_km: float = 5) -> List[Dict]:
         """
-        Find nearby services by type and location.
+        Find nearby services by type and location using semantic search.
         
         Args:
             latitude: User's latitude
@@ -140,19 +164,47 @@ class RoutingService(IRoutingService):
         try:
             routing_logger.info(f"Finding {service_type} services within {radius_km}km")
             
-            # Query database for nearby POIs of type
-            pois = self.db.get_nearby_pois(latitude, longitude, radius_km)
+            # Use vector service to search for POIs semantically
+            pois = await self.vector.search_pois(service_type, limit=50)
             
-            # Filter by service type
-            filtered = [
-                poi for poi in pois 
-                if poi.get("category", "").lower() == service_type.lower()
-            ]
+            # Filter by proximity (within radius) - only include actual matches
+            from app.graph.nodes.geo_helpers import haversine_distance
             
-            routing_logger.info(f"Found {len(filtered)} {service_type} services")
-            return filtered
+            search_term_lower = service_type.lower()
+            nearby_services = []
+            
+            for poi in pois:
+                distance = haversine_distance(
+                    latitude, longitude,
+                    poi.latitude, poi.longitude
+                )
+                
+                if distance <= radius_km:
+                    # Only include POIs where search term appears in name, category, or type
+                    # This excludes places that only mention the term in descriptions
+                    name_match = search_term_lower in (poi.name or "").lower()
+                    category_match = search_term_lower in (poi.category or "").lower()
+                    type_match = search_term_lower in (getattr(poi, 'type', '') or "").lower()
+                    
+                    if name_match or category_match or type_match:
+                        nearby_services.append({
+                            "id": poi.id,
+                            "name": poi.name,
+                            "category": poi.category,
+                            "latitude": poi.latitude,
+                            "longitude": poi.longitude,
+                            "distance_km": round(distance, 2),
+                            "description": poi.description,
+                        })
+            
+            # Sort by distance
+            nearby_services.sort(key=lambda x: x["distance_km"])
+            
+            routing_logger.info(f"Found {len(nearby_services)} {service_type} services within {radius_km}km (exact matches only)")
+            return nearby_services
             
         except Exception as e:
+            routing_logger.error(f"Service search failed: {str(e)}")
             raise RouteCalculationError(f"Service search failed: {str(e)}")
     
     def _find_poi_by_name(self, name: str) -> Dict[str, Any]:
