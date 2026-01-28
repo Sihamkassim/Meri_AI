@@ -150,7 +150,7 @@ class RoutingService(IRoutingService):
     async def find_nearby_services(self, latitude: float, longitude: float,
                                    service_type: str, radius_km: float = 5) -> List[Dict]:
         """
-        Find nearby services by type and location.
+        Find nearby services by type and location using semantic search.
         
         Args:
             latitude: User's latitude
@@ -164,19 +164,47 @@ class RoutingService(IRoutingService):
         try:
             routing_logger.info(f"Finding {service_type} services within {radius_km}km")
             
-            # Query database for nearby POIs of type
-            pois = self.db.get_nearby_pois(latitude, longitude, radius_km)
+            # Use vector service to search for POIs semantically
+            pois = await self.vector.search_pois(service_type, limit=50)
             
-            # Filter by service type
-            filtered = [
-                poi for poi in pois 
-                if poi.get("category", "").lower() == service_type.lower()
-            ]
+            # Filter by proximity (within radius) - only include actual matches
+            from app.graph.nodes.geo_helpers import haversine_distance
             
-            routing_logger.info(f"Found {len(filtered)} {service_type} services")
-            return filtered
+            search_term_lower = service_type.lower()
+            nearby_services = []
+            
+            for poi in pois:
+                distance = haversine_distance(
+                    latitude, longitude,
+                    poi.latitude, poi.longitude
+                )
+                
+                if distance <= radius_km:
+                    # Only include POIs where search term appears in name, category, or type
+                    # This excludes places that only mention the term in descriptions
+                    name_match = search_term_lower in (poi.name or "").lower()
+                    category_match = search_term_lower in (poi.category or "").lower()
+                    type_match = search_term_lower in (getattr(poi, 'type', '') or "").lower()
+                    
+                    if name_match or category_match or type_match:
+                        nearby_services.append({
+                            "id": poi.id,
+                            "name": poi.name,
+                            "category": poi.category,
+                            "latitude": poi.latitude,
+                            "longitude": poi.longitude,
+                            "distance_km": round(distance, 2),
+                            "description": poi.description,
+                        })
+            
+            # Sort by distance
+            nearby_services.sort(key=lambda x: x["distance_km"])
+            
+            routing_logger.info(f"Found {len(nearby_services)} {service_type} services within {radius_km}km (exact matches only)")
+            return nearby_services
             
         except Exception as e:
+            routing_logger.error(f"Service search failed: {str(e)}")
             raise RouteCalculationError(f"Service search failed: {str(e)}")
     
     def _find_poi_by_name(self, name: str) -> Dict[str, Any]:

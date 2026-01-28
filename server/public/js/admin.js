@@ -1,5 +1,5 @@
 // ASTU Route AI - Admin Dashboard JavaScript
-const API_BASE = (typeof process !== 'undefined' && process.env.API_URL) || 'http://localhost:4000';
+const API_BASE = (typeof process !== 'undefined' && process.env.API_BASE) || 'http://localhost:4000';
 let map = null;
 let poiMap = null;
 let testRouteMap = null;  // NEW: Dedicated map for Test AI route visualization

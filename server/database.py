@@ -215,6 +215,64 @@ class Database:
             logger.error(f"✗ Semantic search failed: {e}")
             return []
     
+    def semantic_search_pois(self, query_embedding: List[float], limit: int = 10) -> List[Dict]:
+        """Search POIs by semantic similarity using pgvector"""
+        try:
+            with psycopg.connect(self.connection_string, row_factory=dict_row) as conn:
+                with conn.cursor() as cur:
+                    embedding_str = f"[{','.join(map(str, query_embedding))}]"
+                    
+                    cur.execute("""
+                        SELECT 
+                            id, name, category, latitude, longitude, 
+                            description, tags,
+                            1 - (description_embedding <=> %s::vector) AS similarity
+                        FROM pois
+                        WHERE description_embedding IS NOT NULL
+                        ORDER BY description_embedding <=> %s::vector
+                        LIMIT %s;
+                    """, (embedding_str, embedding_str, limit))
+                    
+                    return cur.fetchall()
+        except Exception as e:
+            logger.error(f"✗ POI semantic search failed: {e}")
+            return []
+    
+    def search_pois_by_text(self, query: str, limit: int = 10) -> List[Dict]:
+        """Search POIs using text matching (fallback when no embeddings)"""
+        try:
+            with psycopg.connect(self.connection_string, row_factory=dict_row) as conn:
+                with conn.cursor() as cur:
+                    clean_query = query.strip().lower()
+                    search_pattern = f"%{clean_query}%"
+                    
+                    cur.execute("""
+                        SELECT 
+                            id, name, category, latitude, longitude, 
+                            description, tags
+                        FROM pois
+                        WHERE 
+                            LOWER(name) LIKE %s
+                            OR LOWER(category) LIKE %s
+                            OR LOWER(description) LIKE %s
+                            OR LOWER(tags::text) LIKE %s
+                        ORDER BY 
+                            CASE 
+                                WHEN LOWER(name) = %s THEN 1
+                                WHEN LOWER(category) = %s THEN 2
+                                WHEN LOWER(name) LIKE %s THEN 3
+                                WHEN LOWER(category) LIKE %s THEN 4
+                                ELSE 5
+                            END
+                        LIMIT %s;
+                    """, (search_pattern, search_pattern, search_pattern, search_pattern,
+                          clean_query, clean_query, search_pattern, search_pattern, limit))
+                    
+                    return cur.fetchall()
+        except Exception as e:
+            logger.error(f"✗ POI text search failed: {e}")
+            return []
+    
     async def execute_query(self, query: str, *params) -> List[Dict]:
         """Execute a parameterized query and return results"""
         try:

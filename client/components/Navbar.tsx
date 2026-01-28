@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { AppRoute } from "../types";
-import { Menu, X, MapPin, Sparkles } from "lucide-react";
+import { Menu, X, MapPin, Sparkles, Info } from "lucide-react";
 
 interface NavbarProps {
   onNavigate: (route: AppRoute) => void;
@@ -11,6 +11,7 @@ interface NavbarProps {
 
 const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentRoute }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
 
   return (
     <nav className="fixed top-0 w-full z-50 bg-white border-b border-slate-200">
@@ -60,6 +61,15 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentRoute }) => {
 
         {/* CTA */}
         <div className="flex items-center gap-3">
+          {/* About / Built-by icon */}
+          <button
+            onClick={() => setShowAbout(true)}
+            title="About — Built by the Divas"
+            className="hidden sm:inline-flex items-center justify-center w-11 h-11 rounded-full bg-gradient-to-tr from-emerald-500 via-emerald-400 to-emerald-600 text-white shadow-lg transform hover:scale-105 transition-all ring-2 ring-emerald-200 hover:ring-emerald-300 relative"
+          >
+            <span className="absolute -inset-0.5 rounded-full animate-ping opacity-30 bg-emerald-400" />
+            <Info size={18} />
+          </button>
           <button
             onClick={() => onNavigate(AppRoute.MAP)}
             className="hidden sm:flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition shadow"
@@ -104,8 +114,75 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentRoute }) => {
             active={currentRoute === AppRoute.ASSISTANT}
             onClick={() => onNavigate(AppRoute.ASSISTANT)}
           />
+          <MobileItem
+            label="About"
+            active={false}
+            onClick={() => { setIsOpen(false); setShowAbout(true); }}
+          />
         </div>
       </div>
+      
+      {/* About Modal */}
+      {showAbout && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white max-w-xl w-full mx-4 rounded-2xl shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <h3 className="text-lg font-bold">Built by the Divas 💫</h3>
+              <button onClick={() => setShowAbout(false)} className="text-slate-600 hover:text-slate-900">✕</button>
+            </div>
+            <div className="p-6 space-y-4 text-sm text-slate-700">
+              <p className="font-medium">Full stack developers & agentic AI enthusiasts</p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-emerald-400 via-emerald-500 to-emerald-600 flex items-center justify-center text-white text-lg font-bold shadow">🧕</div>
+                  <div>
+                    <div className="font-semibold">Siham Kassim</div>
+                    <a className="text-emerald-600 hover:underline text-xs" href="https://www.linkedin.com/in/siham-kassim1212121212/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-emerald-300 via-emerald-400 to-emerald-500 flex items-center justify-center text-white text-lg font-bold shadow">🧕</div>
+                  <div>
+                    <div className="font-semibold">Fetiya Yusuf</div>
+                    <a className="text-emerald-600 hover:underline text-xs" href="https://www.linkedin.com/in/fetiya-yusuf" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-emerald-300 via-emerald-400 to-emerald-500 flex items-center justify-center text-white text-lg font-bold shadow">👩‍🦱</div>
+                  <div>
+                    <div className="font-semibold">Tsion Birhanu</div>
+                    <a className="text-emerald-600 hover:underline text-xs" href="https://www.linkedin.com/in/tsion-birhanu-2847603a1?utm_source=share_via&utm_content=profile&utm_medium=member_android" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-emerald-300 via-emerald-400 to-emerald-500 flex items-center justify-center text-white text-lg font-bold shadow">🧕</div>
+                  <div>
+                    <div className="font-semibold">Lelo Mohammed</div>
+                    <a className="text-emerald-600 hover:underline text-xs" href="https://www.linkedin.com/in/lelo-mohamed-b6a592279?utm_source=share_via&utm_content=profile&utm_medium=member_android" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-emerald-300 via-emerald-400 to-emerald-500 flex items-center justify-center text-white text-lg font-bold shadow">🧕</div>
+                  <div>
+                    <div className="font-semibold">Temkin Abdulmelik</div>
+                    <a className="text-emerald-600 hover:underline text-xs" href="https://www.linkedin.com/in/temkin-abdulmelik-195582306?utm_source=share_via&utm_content=profile&utm_medium=member_android" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-xs text-slate-500">Thanks for using the app — created by the Divas.💫</p>
+            </div>
+            <div className="p-4 border-t flex justify-end">
+              <button onClick={() => setShowAbout(false)} className="px-4 py-2 bg-emerald-600 text-white rounded-lg">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </nav>
   );
 };

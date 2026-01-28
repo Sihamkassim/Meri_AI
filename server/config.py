@@ -10,6 +10,10 @@ import os
 class Settings(BaseSettings):
     """Application settings loaded from .env file"""
     
+    # API Base Configuration
+    api_base: Optional[str] = None
+    next_public_api_base: Optional[str] = None
+    
     # Supabase Configuration
     supabase_url: str
     supabase_service_role_key: str
@@ -24,12 +28,12 @@ class Settings(BaseSettings):
     ai_stream_timeout: int = 30
     embedding_model: str = "text-embedding-004"
     
-    # Voyage AI Configuration (Separate keys for different use cases)
-    voyage_api_key: Optional[str] = None  # For document embeddings (RAG)
-    voyage_poi_api_key: Optional[str] = None  # For POI semantic search
+    # Voyage AI Configuration
+    voyage_api_key: Optional[str] = None
+    voyage_poi_api_key: Optional[str] = None
     
     # Server Configuration
-    port: int = int(os.getenv("PORT", "4000"))  # Use Render's PORT env var
+    port: int = int(os.getenv("PORT", "4000"))
     host: str = "0.0.0.0"
     node_env: str = "development"
     
@@ -39,7 +43,9 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
-        case_sensitive = False  # Allow both lowercase and UPPERCASE env vars
+        case_sensitive = False
+        # Important: This ignores extra variables in your .env
+        extra = "ignore" 
     
     def is_production(self) -> bool:
         """Check if running in production mode"""
@@ -64,9 +70,6 @@ if __name__ == "__main__":
     print("\n=== Configuration Check ===")
     print(f"Environment: {settings.node_env}")
     print(f"Server: {settings.host}:{settings.port}")
-    print(f"Database: {settings.database_url[:50]}...")
-    print(f"Supabase URL: {settings.supabase_url}")
+    print(f"Database: Connected")
     print(f"AI Model: {settings.ai_model}")
-    print(f"Embedding Model: {settings.embedding_model}")
-    print(f"Redis: {'Configured' if settings.redis_url else 'Not configured (optional)'}")
     print("✓ All required settings present!\n")

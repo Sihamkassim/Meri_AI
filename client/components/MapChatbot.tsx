@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Navigation, X, MessageCircle, Route, MapPin, ChevronDown, ChevronUp, Loader2, Zap } from 'lucide-react';
 import { useNavigationStreaming, NavigationResponse } from '../hooks/useNavigationStreaming';
+import { formatAIResponse } from '../utils/formatResponse';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -22,13 +23,29 @@ export interface MapChatbotProps {
   embedded?: boolean;
 }
 
-// Default ASTU campus coordinates
-const DEFAULT_LATITUDE = 8.564168;
-const DEFAULT_LONGITUDE = 39.289311;
+// Default ASTU Main Gate coordinates
+const DEFAULT_LATITUDE = 8.55686;
+const DEFAULT_LONGITUDE = 39.29108;
+
+// Campus area boundaries (approximate OSM edges for Adama/ASTU area)
+const CAMPUS_BOUNDS = {
+  minLat: 8.52,
+  maxLat: 8.60,
+  minLng: 39.25,
+  maxLng: 39.32
+};
+
+// Check if coordinates are within campus area
+const isWithinCampusArea = (lat: number, lng: number): boolean => {
+  return lat >= CAMPUS_BOUNDS.minLat && 
+         lat <= CAMPUS_BOUNDS.maxLat && 
+         lng >= CAMPUS_BOUNDS.minLng && 
+         lng <= CAMPUS_BOUNDS.maxLng;
+};
 
 export const MapChatbot: React.FC<MapChatbotProps> = ({
-  latitude = DEFAULT_LATITUDE,
-  longitude = DEFAULT_LONGITUDE,
+  latitude,
+  longitude,
   selectedNodeName,
   mode = 'walking',
   onRouteGenerated,
@@ -36,16 +53,52 @@ export const MapChatbot: React.FC<MapChatbotProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationStatus, setLocationStatus] = useState<'loading' | 'actual' | 'outside-range' | 'denied' | 'default'>('loading');
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: 'assistant',
-      content: '🗺️ Hi! I\'m your ASTU Navigation Assistant!\n\nAsk me:\n• "How do I get to the library?"\n• "Route from Block 57 to ICT Center"\n• "Where is the nearest mosque?"\n\nI\'ll show you the walking path on the map!',
+      content: '🗺️ Hi! I\'m your ASTU Navigation Assistant!\n\nAsk me:\n• "How do I get to the library?"\n• "Route from Block 57 to ICT Center"\n• "Where is Borchamu Building?"\n\nI\'ll show you the walking path on the map!',
       timestamp: Date.now()
     }
   ]);
   const [input, setInput] = useState('');
   const [showReasoning, setShowReasoning] = useState<number | null>(null);
+  const [selectedUrgency, setSelectedUrgency] = useState<'normal' | 'high'>('normal');
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Get user's actual location on mount
+  useEffect(() => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          
+          // Only use user location if within campus area
+          if (isWithinCampusArea(lat, lng)) {
+            setUserLocation({ lat, lng });
+            setLocationStatus('actual');
+            console.log(`User location within campus area: ${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+          } else {
+            console.log(`User location outside campus area (${lat.toFixed(5)}, ${lng.toFixed(5)}), using default main gate location`);
+            setUserLocation({ lat: DEFAULT_LATITUDE, lng: DEFAULT_LONGITUDE });
+            setLocationStatus('outside-range');
+          }
+        },
+        (error) => {
+          console.warn('Could not get user location:', error.message, '- Using default main gate location');
+          setUserLocation({ lat: DEFAULT_LATITUDE, lng: DEFAULT_LONGITUDE });
+          setLocationStatus('denied');
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      );
+    } else {
+      // Fallback to default if geolocation not supported
+      setUserLocation({ lat: DEFAULT_LATITUDE, lng: DEFAULT_LONGITUDE });
+      setLocationStatus('default');
+    }
+  }, []);
 
   const { isStreaming, reasoningSteps, answer, error, startStream } = useNavigationStreaming({
     onAnswer: (data) => {
@@ -85,6 +138,21 @@ export const MapChatbot: React.FC<MapChatbotProps> = ({
     }
   }, [messages, isOpen, reasoningSteps]);
 
+  // Listen for navigation events from map markers
+  useEffect(() => {
+    const handleNavigateToPOI = (event: any) => {
+      const { poiName } = event.detail;
+      if (poiName) {
+        setInput(`How do I get to ${poiName}?`);
+        setIsOpen(true);
+        setIsMinimized(false);
+      }
+    };
+
+    window.addEventListener('navigate-to-poi', handleNavigateToPOI);
+    return () => window.removeEventListener('navigate-to-poi', handleNavigateToPOI);
+  }, []);
+
   const handleSend = async () => {
     if (!input.trim() || isStreaming) return;
 
@@ -93,12 +161,16 @@ export const MapChatbot: React.FC<MapChatbotProps> = ({
     const userQuery = input;
     setInput('');
 
+    // Use provided coordinates or user location, fallback to defaults
+    const currentLat = latitude || userLocation?.lat || DEFAULT_LATITUDE;
+    const currentLng = longitude || userLocation?.lng || DEFAULT_LONGITUDE;
+
     // Start SSE streaming with current location
     startStream(userQuery, {
-      latitude,
-      longitude,
-      mode,
-      urgency: mode === 'urgent' ? 'high' : 'normal',
+      latitude: currentLat,
+      longitude: currentLng,
+      mode: mode,
+      urgency: selectedUrgency,
     });
   };
 
@@ -131,8 +203,8 @@ export const MapChatbot: React.FC<MapChatbotProps> = ({
 
   // Styles for embedded vs floating
   const containerClasses = embedded
-    ? "flex flex-col h-full bg-slate-900 overflow-hidden" // Embedded: Fill parent, no rounded corners (handled by parent)
-    : `fixed bottom-6 right-6 z-[1100] w-[360px] max-w-[calc(100vw-48px)] bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl shadow-slate-900/50 flex flex-col transition-all duration-300 ${isMinimized ? 'h-14' : 'h-[480px] max-h-[70vh]'
+    ? "flex flex-col h-full bg-slate-900 rounded-2xl overflow-hidden" // Added rounded-2xl for embedded
+    : `fixed bottom-6 right-6 z-[1100] w-[360px] max-w-[calc(100vw-48px)] bg-slate-900 rounded-3xl border border-slate-700 shadow-2xl shadow-slate-900/50 flex flex-col transition-all duration-300 ${isMinimized ? 'h-14' : 'h-[480px] max-h-[70vh]'
     }`;
 
   return (
@@ -141,7 +213,7 @@ export const MapChatbot: React.FC<MapChatbotProps> = ({
       <div
         className={`px-4 py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 flex items-center justify-between ${
           // Only add rounded top if NOT embedded (or if you want rounding in embedded too, but usually parent handles it)
-          !embedded ? "rounded-t-2xl cursor-pointer" : ""
+          !embedded ? "rounded-t-3xl cursor-pointer" : "rounded-t-2xl"
           }`}
         onClick={() => !embedded && setIsMinimized(!isMinimized)}
       >
@@ -158,39 +230,78 @@ export const MapChatbot: React.FC<MapChatbotProps> = ({
           </div>
         </div>
 
-        {/* Only show controls if NOT embedded */}
-        {!embedded && (
-          <div className="flex items-center gap-1">
-            <button
-              onClick={(e) => { e.stopPropagation(); setIsMinimized(!isMinimized); }}
-              className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+        <div className="flex items-center gap-2">
+          {/* Urgency Level Dropdown */}
+          <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+            <span className="text-[9px] text-emerald-100 font-semibold uppercase tracking-wider">Urgency:</span>
+            <select
+              value={selectedUrgency}
+              onChange={(e) => setSelectedUrgency(e.target.value as 'normal' | 'high')}
+              className="text-[10px] font-medium bg-white/10 text-white border border-white/20 px-2 py-1 rounded-lg outline-none hover:bg-white/20 transition-all cursor-pointer"
             >
-              {isMinimized ? <ChevronUp size={16} className="text-white" /> : <ChevronDown size={16} className="text-white" />}
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); setIsOpen(false); }}
-              className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
-            >
-              <X size={16} className="text-white" />
-            </button>
+              <option value="normal" className="bg-slate-800 text-white">🕐 Normal</option>
+              <option value="high" className="bg-slate-800 text-white">🔥 High</option>
+            </select>
           </div>
-        )}
+
+          {/* Only show controls if NOT embedded */}
+          {!embedded && (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={(e) => { e.stopPropagation(); setIsMinimized(!isMinimized); }}
+                className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+              >
+                {isMinimized ? <ChevronUp size={16} className="text-white" /> : <ChevronDown size={16} className="text-white" />}
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); setIsOpen(false); }}
+                className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+              >
+                <X size={16} className="text-white" />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {(!isMinimized || embedded) && (
         <>
           {/* Location Context Banner */}
-          {(latitude && longitude) || selectedNodeName ? (
-            <div className="px-4 py-2 bg-slate-800/50 border-b border-slate-700/50 flex items-center gap-2">
-              <MapPin size={12} className="text-emerald-400" />
-              <span className="text-[10px] text-slate-400">
-                {selectedNodeName
-                  ? `Selected: ${selectedNodeName}`
-                  : latitude && longitude
-                    ? `Location: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`
-                    : 'No location set'
-                }
-              </span>
+          {selectedNodeName || userLocation || (latitude && longitude) ? (
+            <div className="px-4 py-2 bg-slate-800/50 border-b border-slate-700/50">
+              <div className="flex items-center gap-2">
+                <MapPin size={12} className="text-emerald-400" />
+                <div className="flex-1">
+                  {selectedNodeName ? (
+                    <span className="text-[10px] text-slate-400">Selected: {selectedNodeName}</span>
+                  ) : userLocation ? (
+                    <div className="space-y-0.5">
+                      <span className="text-[10px] text-slate-400 block">
+                        {locationStatus === 'actual' 
+                          ? `Your Location: ${userLocation.lat.toFixed(4)}, ${userLocation.lng.toFixed(4)}`
+                          : `ASTU Main Gate: ${userLocation.lat.toFixed(4)}, ${userLocation.lng.toFixed(4)}`
+                        }
+                      </span>
+                      {(locationStatus === 'outside-range' || locationStatus === 'denied' || locationStatus === 'default') && (
+                        <span className="text-[9px] text-amber-400/70 block">
+                          {locationStatus === 'outside-range' 
+                            ? '⚠️ Your location is far from campus - using main gate as starting point'
+                            : locationStatus === 'denied'
+                            ? '⚠️ Location access denied - using main gate as starting point'
+                            : '⚠️ Using main gate as default starting point'
+                          }
+                        </span>
+                      )}
+                    </div>
+                  ) : latitude && longitude ? (
+                    <span className="text-[10px] text-slate-400">
+                      Location: {latitude.toFixed(4)}, {longitude.toFixed(4)}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-slate-400">Getting location...</span>
+                  )}
+                </div>
+              </div>
             </div>
           ) : null}
 
@@ -206,12 +317,12 @@ export const MapChatbot: React.FC<MapChatbotProps> = ({
                   </div>
                   <div className="flex flex-col gap-1">
                     {/* Message content */}
-                    <div className={`px-3 py-2 rounded-xl text-sm leading-relaxed whitespace-pre-line ${
+                    <div className={`px-3 py-2 rounded-xl text-sm leading-relaxed ${
                       msg.role === 'user'
                         ? 'bg-slate-700 text-white rounded-tr-sm'
                         : 'bg-slate-800 text-slate-200 rounded-tl-sm border border-slate-700'
                     }`}>
-                      {msg.content}
+                      {msg.role === 'assistant' ? formatAIResponse(msg.content) : msg.content}
                     </div>
                     
                     {/* Distance Badge */}
@@ -286,7 +397,7 @@ export const MapChatbot: React.FC<MapChatbotProps> = ({
               <button
                 key={i}
                 onClick={() => setInput(action.query)}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-medium rounded-lg whitespace-nowrap transition-colors border border-slate-700"
+                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-medium rounded-xl whitespace-nowrap transition-colors border border-slate-700"
               >
                 {action.text}
               </button>
@@ -294,7 +405,7 @@ export const MapChatbot: React.FC<MapChatbotProps> = ({
           </div>
 
           {/* Input */}
-          <div className="p-4 border-t border-slate-700">
+          <div className="px-4 pb-4">
             <div className="flex gap-2">
               <input
                 type="text"

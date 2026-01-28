@@ -58,27 +58,45 @@ async def _handle_nearby_service(
     logger.info("[GeoReasoningNode] Searching for nearby services...")
     
     try:
-        # Extract service category from query (simple keyword matching)
+        # Extract service category from query with synonym mapping
         query = state["user_query"].lower()
-        categories = ["mosque", "pharmacy", "salon", "cafe", "restaurant", 
-                     "bank", "atm", "hospital", "clinic", "market"]
+        
+        # Category mappings with synonyms
+        category_mappings = {
+            "mosque": ["mosque", "masjid", "prayer hall"],
+            "cafe": ["cafe", "cafeteria", "coffee shop"],
+            "pharmacy": ["pharmacy", "drugstore", "medicine"],
+            "restaurant": ["restaurant", "food", "dining"],
+            "hospital": ["hospital", "medical center", "emergency"],
+            "clinic": ["clinic", "health center", "medical"],
+            "bank": ["bank", "banking"],
+            "atm": ["atm", "cash machine"],
+            "salon": ["salon", "barber", "hair"],
+            "market": ["market", "shop", "store"],
+        }
         
         category = None
-        for cat in categories:
-            if cat in query:
-                category = cat
+        for main_category, synonyms in category_mappings.items():
+            for synonym in synonyms:
+                if synonym in query:
+                    category = main_category
+                    break
+            if category:
                 break
         
         if not category:
-            category = "mosque"  # Default
+            # Try to detect from POI search if no keyword match
+            logger.warning(f"[GeoReasoningNode] Could not extract category from query: '{query}'")
+            category = "service"  # Generic fallback
+        
+        logger.info(f"[GeoReasoningNode] Detected service category: {category}")
         
         # Get nearby services
         services = await routing_service.find_nearby_services(
             latitude=state.get("latitude", 8.5569),
             longitude=state.get("longitude", 39.2911),
-            category=category,
-            max_distance_km=5.0,
-            limit=10
+            service_type=category,
+            radius_km=5.0
         )
         
         # Format response

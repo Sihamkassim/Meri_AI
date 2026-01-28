@@ -111,6 +111,7 @@ const MapDisplay: React.FC<MapDisplayProps> = ({ selectedNodeId, routeCoords, st
   const [campusBoundary, setCampusBoundary] = useState<[number, number][]>([]);
   const [loadingMap, setLoadingMap] = useState(true);
   const [showLegend, setShowLegend] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   console.log('[MapDisplay] Component mounted/rendered');
 
@@ -277,6 +278,33 @@ const MapDisplay: React.FC<MapDisplayProps> = ({ selectedNodeId, routeCoords, st
     }
   };
 
+  const toggleFullscreen = () => {
+    const elem = document.querySelector('.map-container');
+    if (!elem) return;
+
+    if (!document.fullscreenElement) {
+      elem.requestFullscreen().then(() => {
+        setIsFullscreen(true);
+      }).catch((err) => {
+        console.error('Error attempting to enable fullscreen:', err);
+      });
+    } else {
+      document.exitFullscreen().then(() => {
+        setIsFullscreen(false);
+      });
+    }
+  };
+
+  // Listen for fullscreen changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
   // Map tile configurations
   const mapTiles = {
     default: {
@@ -308,7 +336,7 @@ const MapDisplay: React.FC<MapDisplayProps> = ({ selectedNodeId, routeCoords, st
         campusNodes.reduce((sum, n) => sum + n.y, 0) / campusNodes.length,
         campusNodes.reduce((sum, n) => sum + n.x, 0) / campusNodes.length
       ]
-    : [8.5520, 39.2850]; // Default ASTU center
+    : [8.55686, 39.29108]; // Default ASTU Main Gate
 
   // Convert route coordinates from API format to Leaflet format
   const activeRouteCoords: [number, number][] = routeCoords
@@ -345,7 +373,7 @@ const MapDisplay: React.FC<MapDisplayProps> = ({ selectedNodeId, routeCoords, st
   }
 
   return (
-    <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/40 overflow-hidden flex flex-col h-full ">
+    <div className="map-container bg-white rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/40 overflow-hidden flex flex-col h-full ">
       {/* Header Panel */}
       <div className="p-4 md:p-6 border-b border-slate-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white">
         <div>
@@ -461,7 +489,16 @@ const MapDisplay: React.FC<MapDisplayProps> = ({ selectedNodeId, routeCoords, st
                   
                   {/* Actions */}
                   <div className="flex gap-2 pt-2 border-t border-slate-100">
-                    <button className="flex-grow py-2 bg-emerald-600 text-white text-[11px] font-bold rounded-lg hover:bg-emerald-700 transition-colors flex items-center justify-center gap-1.5">
+                    <button 
+                      onClick={() => {
+                        // Trigger navigation by opening map chatbot with pre-filled destination
+                        const event = new CustomEvent('navigate-to-poi', { 
+                          detail: { poiName: node.name, poiId: node.id } 
+                        });
+                        window.dispatchEvent(event);
+                      }}
+                      className="flex-grow py-2 bg-emerald-600 text-white text-[11px] font-bold rounded-lg hover:bg-emerald-700 transition-colors flex items-center justify-center gap-1.5"
+                    >
                       <Navigation2 size={12} />
                       Get Directions
                     </button>
@@ -665,9 +702,12 @@ const MapDisplay: React.FC<MapDisplayProps> = ({ selectedNodeId, routeCoords, st
             Source: PostGIS / Supabase GeoStore
           </div>
         </div>
-        <button className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-emerald-600 hover:text-emerald-700 transition-colors">
-          <Maximize2 size={14} />
-          Full System View
+        <button 
+          onClick={toggleFullscreen}
+          className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-emerald-600 hover:text-emerald-700 transition-all hover:scale-105 active:scale-95"
+        >
+          <Maximize2 size={14} className={isFullscreen ? 'rotate-45' : ''} />
+          {isFullscreen ? 'Exit Fullscreen' : 'Full System View'}
         </button>
       </div>
     </div>
