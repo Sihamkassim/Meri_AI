@@ -47,7 +47,12 @@ export default function Home() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-[650px] lg:h-[85vh] min-h-[600px]">
               {/* Left Side: Map - Span 8 */}
               <div className="lg:col-span-8 h-full rounded-[32px] overflow-hidden bg-white/90 backdrop-blur-3xl border border-white/60 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.3)] relative z-10">
-                <MapWrapper selectedNodeId={selectedDestId} />
+                <MapWrapper 
+                  selectedNodeId={selectedDestId}
+                  routeCoords={routeData.coords}
+                  startCoords={routeData.start}
+                  endCoords={routeData.end}
+                />
               </div>
 
               {/* Right Side: AI Assistant - Span 4 (Increased width) */}
@@ -56,6 +61,22 @@ export default function Home() {
                   selectedNodeName={selectedDestId ? CAMPUS_NODES.find(n => n.id === selectedDestId)?.name : undefined}
                   mode="walking"
                   embedded={true}
+                  onRouteGenerated={(route) => {
+                    console.log('[Page] Route generated callback triggered!');
+                    console.log('[Page] Full route object:', route);
+                    console.log('[Page] route_coords:', route.route_coords);
+                    console.log('[Page] start_coordinates:', route.start_coordinates);
+                    console.log('[Page] end_coordinates:', route.end_coordinates);
+                    
+                    const newRouteData = {
+                      coords: route.route_coords,
+                      start: route.start_coordinates,
+                      end: route.end_coordinates,
+                    };
+                    
+                    console.log('[Page] Setting routeData to:', newRouteData);
+                    setRouteData(newRouteData);
+                  }}
                 />
               </div>
             </div>

@@ -312,8 +312,27 @@ const MapDisplay: React.FC<MapDisplayProps> = ({ selectedNodeId, routeCoords, st
 
   // Convert route coordinates from API format to Leaflet format
   const activeRouteCoords: [number, number][] = routeCoords
-    ? routeCoords.map(coord => [coord.lat, coord.lng] as [number, number])
+    ? routeCoords.map(coord => {
+        if (!coord || typeof coord.lat !== 'number' || typeof coord.lng !== 'number') {
+          console.error('[MapDisplay] Invalid coordinate:', coord);
+          return null;
+        }
+        return [coord.lat, coord.lng] as [number, number];
+      }).filter((c): c is [number, number] => c !== null)
     : [];
+
+  console.log('[MapDisplay] ===== ROUTE DEBUG =====');
+  console.log('[MapDisplay] Props received:', { 
+    routeCoordsCount: routeCoords?.length, 
+    startCoords, 
+    endCoords 
+  });
+  console.log('[MapDisplay] routeCoords raw:', routeCoords);
+  console.log('[MapDisplay] Active route coords:', activeRouteCoords);
+  console.log('[MapDisplay] Will render route:', activeRouteCoords.length > 0);
+  console.log('[MapDisplay] First coord:', activeRouteCoords[0]);
+  console.log('[MapDisplay] Last coord:', activeRouteCoords[activeRouteCoords.length - 1]);
+  console.log('[MapDisplay] =======================');
 
   if (loadingMap) {
     return (

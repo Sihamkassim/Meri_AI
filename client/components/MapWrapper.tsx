@@ -23,6 +23,8 @@ interface MapWrapperProps {
 }
 
 const MapWrapper: React.FC<MapWrapperProps> = ({ selectedNodeId, routeCoords, startCoords, endCoords }) => {
+  console.log('[MapWrapper] Props received:', { selectedNodeId, routeCoords, startCoords, endCoords });
+  
   // Use a stable key to prevent re-initialization
   return (
     <div key="map-wrapper-stable" style={{ height: '100%', width: '100%' }}>
