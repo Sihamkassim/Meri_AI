@@ -64,6 +64,8 @@ export const MapChatbot: React.FC<MapChatbotProps> = ({
   ]);
   const [input, setInput] = useState('');
   const [showReasoning, setShowReasoning] = useState<number | null>(null);
+  const [selectedMode, setSelectedMode] = useState<'walking' | 'taxi' | 'urgent'>(mode);
+  const [selectedUrgency, setSelectedUrgency] = useState<'normal' | 'high'>('normal');
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Get user's actual location on mount
@@ -168,8 +170,8 @@ export const MapChatbot: React.FC<MapChatbotProps> = ({
     startStream(userQuery, {
       latitude: currentLat,
       longitude: currentLng,
-      mode,
-      urgency: mode === 'urgent' ? 'high' : 'normal',
+      mode: selectedMode,
+      urgency: selectedUrgency,
     });
   };
 
@@ -388,8 +390,62 @@ export const MapChatbot: React.FC<MapChatbotProps> = ({
             ))}
           </div>
 
+          {/* Mode & Urgency Selectors */}
+          <div className="px-4 pt-3 pb-2 border-t border-slate-700">
+            <div className="space-y-2">
+              {/* Mode Selector */}
+              <div>
+                <label className="text-[9px] text-slate-400 uppercase tracking-wider font-semibold mb-1.5 block">Travel Mode</label>
+                <div className="flex gap-2">
+                  {[
+                    { value: 'walking', icon: '🚶', label: 'Walk' },
+                    { value: 'taxi', icon: '🚕', label: 'Taxi' },
+                    { value: 'urgent', icon: '⚡', label: 'Urgent' },
+                  ].map((modeOption) => (
+                    <button
+                      key={modeOption.value}
+                      onClick={() => setSelectedMode(modeOption.value as 'walking' | 'taxi' | 'urgent')}
+                      className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all border ${
+                        selectedMode === modeOption.value
+                          ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-500/30'
+                          : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                      }`}
+                    >
+                      <span className="mr-1">{modeOption.icon}</span>
+                      {modeOption.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Urgency Selector */}
+              <div>
+                <label className="text-[9px] text-slate-400 uppercase tracking-wider font-semibold mb-1.5 block">Urgency Level</label>
+                <div className="flex gap-2">
+                  {[
+                    { value: 'normal', icon: '🕐', label: 'Normal' },
+                    { value: 'high', icon: '🔥', label: 'High' },
+                  ].map((urgencyOption) => (
+                    <button
+                      key={urgencyOption.value}
+                      onClick={() => setSelectedUrgency(urgencyOption.value as 'normal' | 'high')}
+                      className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all border ${
+                        selectedUrgency === urgencyOption.value
+                          ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-500/30'
+                          : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                      }`}
+                    >
+                      <span className="mr-1">{urgencyOption.icon}</span>
+                      {urgencyOption.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Input */}
-          <div className="p-4 border-t border-slate-700">
+          <div className="px-4 pb-4">
             <div className="flex gap-2">
               <input
                 type="text"

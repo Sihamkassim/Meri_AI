@@ -78,6 +78,14 @@ class OSMService:
             
             logger.info(f"[OSMService] Calculating route from ({start_lat}, {start_lng}) to ({end_lat}, {end_lng})")
             
+            # Check if destination is outside campus (more than 1km from center)
+            dest_distance_from_center = geodesic(self.ASTU_CENTER, (end_lat, end_lng)).meters
+            is_external_destination = dest_distance_from_center > (self.CAMPUS_RADIUS + 200)
+            
+            if is_external_destination:
+                logger.info(f"[OSMService] Destination is external ({dest_distance_from_center:.0f}m from campus center)")
+                return self._route_to_external_destination(start_lat, start_lng, end_lat, end_lng)
+            
             # Find nearest nodes
             start_node = ox.distance.nearest_nodes(self.graph, start_lng, start_lat)
             end_node = ox.distance.nearest_nodes(self.graph, end_lng, end_lat)
@@ -149,6 +157,103 @@ class OSMService:
         instructions.append("You have arrived at your destination")
         
         return instructions
+    
+    def _route_to_external_destination(
+        self,
+        start_lat: float,
+        start_lng: float,
+        end_lat: float,
+        end_lng: float
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Handle routing to destinations outside campus by finding nearest campus exit.
+        Routes to campus edge, then provides straight-line guidance to external destination.
+        """
+        try:
+            # Find nearest campus exit (find boundary nodes closest to destination)
+            boundary_nodes = []
+            for node, data in self.graph.nodes(data=True):
+                node_lat, node_lng = data["y"], data["x"]
+                # Check if node is near campus boundary
+                dist_from_center = geodesic(self.ASTU_CENTER, (node_lat, node_lng)).meters
+                if dist_from_center > (self.CAMPUS_RADIUS * 0.85):  # 85% of radius = near edge
+                    boundary_nodes.append((node, node_lat, node_lng))
+            
+            # Find boundary node closest to external destination
+            best_exit = None
+            min_dist = float('inf')
+            for node, node_lat, node_lng in boundary_nodes:
+                dist = geodesic((node_lat, node_lng), (end_lat, end_lng)).meters
+                if dist < min_dist:
+                    min_dist = dist
+                    best_exit = (node, node_lat, node_lng)
+            
+            if not best_exit:
+                logger.warning("[OSMService] No suitable campus exit found")
+                return None
+            
+            exit_node, exit_lat, exit_lng = best_exit
+            
+            # Route from start to campus exit
+            start_node = ox.distance.nearest_nodes(self.graph, start_lng, start_lat)
+            
+            route = nx.shortest_path(
+                self.graph,
+                start_node,
+                exit_node,
+                weight="length"
+            )
+            
+            # Calculate distance within campus
+            campus_distance = 0
+            route_coords = []
+            for i, node in enumerate(route):
+                node_data = self.graph.nodes[node]
+                route_coords.append({
+                    "lat": node_data["y"],
+                    "lng": node_data["x"]
+                })
+                if i < len(route) - 1:
+                    edge_data = self.graph.get_edge_data(route[i], route[i + 1])
+                    if edge_data:
+                        first_edge = list(edge_data.values())[0]
+                        campus_distance += first_edge.get("length", 0)
+            
+            # Add external segment (straight line from campus exit to destination)
+            external_distance = geodesic((exit_lat, exit_lng), (end_lat, end_lng)).meters
+            route_coords.append({"lat": end_lat, "lng": end_lng})
+            
+            total_distance = campus_distance + external_distance
+            walking_time = total_distance / 1.4  # seconds
+            
+            # Generate instructions
+            instructions = [
+                "Start from your current location",
+                f"Follow the campus path to the nearest exit ({round(campus_distance)}m)",
+                "Exit the campus",
+                f"Continue straight for approximately {round(external_distance)}m to reach your destination",
+                "You have arrived at your destination"
+            ]
+            
+            result = {
+                "distance_meters": round(total_distance, 1),
+                "distance_km": round(total_distance / 1000, 2),
+                "duration_seconds": round(walking_time),
+                "duration_minutes": round(walking_time / 60, 1),
+                "route_coords": route_coords,
+                "instructions": instructions,
+                "nodes_count": len(route),
+                "external_destination": True,
+                "campus_distance_meters": round(campus_distance, 1),
+                "external_distance_meters": round(external_distance, 1)
+            }
+            
+            logger.info(f"[OSMService] ✓ Hybrid route: {campus_distance:.0f}m campus + {external_distance:.0f}m external")
+            return result
+            
+        except Exception as e:
+            logger.error(f"[OSMService] External route calculation failed: {e}")
+            return None
     
     def find_nearby_pois(
         self,

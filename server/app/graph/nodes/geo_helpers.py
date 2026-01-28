@@ -70,14 +70,22 @@ async def extract_locations_from_query(
         match = re.search(pattern, query, re.IGNORECASE)
         if match:
             location_name = match.group(1).strip()
-            logger.info(f"[GeoHelpers] Detected destination: '{location_name}'")
             
-            # Semantic search for destination
-            results = await vector_service.search_pois(location_name, limit=1)
+            # Remove "nearest" or "closest" modifiers to get core location type
+            clean_location = re.sub(r'^(nearest|closest|a|an|the)\s+', '', location_name, flags=re.IGNORECASE).strip()
+            
+            logger.info(f"[GeoHelpers] Detected destination: '{location_name}' → cleaned: '{clean_location}'")
+            
+            # Semantic search for destination (use cleaned name)
+            logger.info(f"[GeoHelpers] Calling search_pois with cleaned location: '{clean_location}'")
+            results = await vector_service.search_pois(clean_location, limit=1)
+            logger.info(f"[GeoHelpers] search_pois returned {len(results)} results")
             end_poi = results[0] if results else None
             
             if end_poi:
                 logger.info(f"[GeoHelpers] Found: {end_poi.name} (similarity: {getattr(end_poi, 'similarity', 'N/A')})")
+            else:
+                logger.warning(f"[GeoHelpers] No POI found for '{clean_location}'")
             
             # If we have current location, find nearest POI as start
             if current_lat and current_lon and end_poi:
@@ -91,10 +99,14 @@ async def extract_locations_from_query(
     
     # Pattern 3: Generic query - search for any mentioned location
     logger.info("[GeoHelpers] No specific pattern matched, searching for locations in query")
+    logger.info(f"[GeoHelpers] Calling search_pois with full query: '{query}'")
     results = await vector_service.search_pois(query, limit=1)
+    logger.info(f"[GeoHelpers] Pattern 3 search returned {len(results)} results")
     if results:
         end_poi = results[0]
         logger.info(f"[GeoHelpers] Found location: {end_poi.name}")
+    else:
+        logger.warning(f"[GeoHelpers] No location found in query: '{query}'")
     
     return start_poi, end_poi
 
