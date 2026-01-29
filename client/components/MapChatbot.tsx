@@ -250,9 +250,9 @@ export const MapChatbot: React.FC<MapChatbotProps> = ({
   // Adjust container classes: when embedded on mobile and open, show as centered overlay/fullscreen
   const containerClasses = embedded
     ? (isMobile
-        ? `fixed z-[1200] max-w-[calc(100vw-32px)] mx-auto bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl shadow-slate-900/60 flex flex-col transition-all duration-300 ${isMinimized ? 'h-14' : 'h-[80vh] max-h-[90vh]'}`
-        : "flex flex-col h-full bg-slate-900 rounded-2xl overflow-hidden")
-    : `fixed bottom-6 right-6 z-[1100] w-[360px] max-w-[calc(100vw-48px)] bg-slate-900 rounded-3xl border border-slate-700 shadow-2xl shadow-slate-900/50 flex flex-col transition-all duration-300 ${isMinimized ? 'h-14' : 'h-[480px] max-h-[70vh]'
+      ? `relative fixed z-[1200] left-3 right-3 bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl shadow-slate-900/60 flex flex-col transition-all duration-300 ${isMinimized ? 'h-14' : 'h-[80vh] max-h-[90vh]'}`
+      : "relative flex flex-col h-full bg-slate-900 rounded-2xl overflow-hidden")
+    : `relative fixed bottom-6 right-6 z-[1100] w-[360px] max-w-[calc(100vw-48px)] bg-slate-900 rounded-3xl border border-slate-700 shadow-2xl shadow-slate-900/50 flex flex-col transition-all duration-300 ${isMinimized ? 'h-14' : 'h-[480px] max-h-[70vh]'
     }`;
 
   // If embedded on mobile, compute an inline style so overlay sits below the nav
@@ -267,39 +267,54 @@ export const MapChatbot: React.FC<MapChatbotProps> = ({
     : undefined;
 
   return (
+    <>
+      {/* Backdrop to prevent map interaction when overlay is open on mobile */}
+      {embedded && isMobile && isOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            top: navOffset + 8,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.35)',
+            zIndex: 1100
+          }}
+        />
+      )}
+
     <div className={containerClasses} style={containerStyle}>
       {/* Header */}
       <div
-        className={`px-4 py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 flex items-center justify-between ${
+        className={`px-3 py-2 pr-12 bg-gradient-to-r from-emerald-600 to-emerald-700 flex items-center justify-between ${
           // Only add rounded top if NOT embedded (or if you want rounding in embedded too, but usually parent handles it)
-          !embedded ? "rounded-t-3xl cursor-pointer" : "rounded-t-2xl"
+          !embedded ? "rounded-t-3xl" : "rounded-t-2xl"
           }`}
-        onClick={() => !embedded && setIsMinimized(!isMinimized)}
       >
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
-            <Navigation size={16} className="text-white" />
+              <div className="w-7 h-7 bg-white/10 rounded-lg flex items-center justify-center">
+                <Navigation size={14} className="text-white" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-white">Navigation Assistant</h3>
-            <div className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse"></span>
-              <span className="text-[9px] text-emerald-100 uppercase tracking-wider">LangGraph Active</span>
-            </div>
+                <h3 className="text-sm font-semibold text-white leading-tight">Navigation Assistant</h3>
+                <div className="flex items-center gap-2 mt-0.5">
+                  
+                  
+                </div>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           {/* Urgency Level Dropdown */}
-          <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-            <span className="text-[9px] text-emerald-100 font-semibold uppercase tracking-wider">Urgency:</span>
+          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+            <span className="text-[9px] text-emerald-100 font-medium uppercase tracking-wide">Urgency:</span>
             <select
               value={selectedUrgency}
               onChange={(e) => setSelectedUrgency(e.target.value as 'normal' | 'high')}
-              className="text-[10px] font-medium bg-white/10 text-white border border-white/20 px-2 py-1 rounded-lg outline-none hover:bg-white/20 transition-all cursor-pointer"
+              className="text-[10px] font-medium bg-white/10 text-white border border-white/10 px-2 py-0.5 rounded-md outline-none hover:bg-white/20 transition-colors cursor-pointer"
             >
-              <option value="normal" className="bg-slate-800 text-white">🕐 Normal</option>
-              <option value="high" className="bg-slate-800 text-white">🔥 High</option>
+              <option value="normal" className="bg-slate-800 text-white">Normal</option>
+              <option value="high" className="bg-slate-800 text-white">High</option>
             </select>
           </div>
 
@@ -307,23 +322,29 @@ export const MapChatbot: React.FC<MapChatbotProps> = ({
           {(!embedded || isMobile) && (
             <div className="flex items-center gap-1">
               <button
-                onClick={(e) => { e.stopPropagation(); setIsMinimized(!isMinimized); }}
-                className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
-              >
-                {isMinimized ? <ChevronUp size={16} className="text-white" /> : <ChevronDown size={16} className="text-white" />}
-              </button>
-              <button
                 onClick={(e) => { e.stopPropagation(); setIsOpen(false); }}
                 className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+                aria-label="Close assistant"
               >
                 <X size={16} className="text-white" />
               </button>
             </div>
           )}
         </div>
+
+      {/* Sticky chevron (collapse) button positioned top-right inside container */}
+      {(!embedded || isMobile) && (
+        <button
+          onClick={(e) => { e.stopPropagation(); setIsMinimized(!isMinimized); }}
+          className="absolute top-3 right-3 z-[1250] p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+          aria-label={isMinimized ? 'Expand assistant' : 'Collapse assistant'}
+        >
+          {isMinimized ? <ChevronDown size={18} className="text-white" /> : <ChevronUp size={18} className="text-white" />}
+        </button>
+      )}
       </div>
 
-      {(!isMinimized || embedded) && (
+      {!isMinimized && (
         <>
           {/* Location Context Banner */}
           {selectedNodeName || userLocation || (latitude && longitude) ? (
@@ -486,6 +507,7 @@ export const MapChatbot: React.FC<MapChatbotProps> = ({
         </>
       )}
     </div>
+    </>
   );
 };
 
