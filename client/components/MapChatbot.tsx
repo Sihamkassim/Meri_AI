@@ -53,6 +53,8 @@ export const MapChatbot: React.FC<MapChatbotProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [navOffset, setNavOffset] = useState(80);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationStatus, setLocationStatus] = useState<'loading' | 'actual' | 'outside-range' | 'denied' | 'default'>('loading');
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -98,6 +100,46 @@ export const MapChatbot: React.FC<MapChatbotProps> = ({
       setUserLocation({ lat: DEFAULT_LATITUDE, lng: DEFAULT_LONGITUDE });
       setLocationStatus('default');
     }
+  }, []);
+
+  // Detect mobile / small screens to change embedded behavior
+  useEffect(() => {
+    const mq = typeof window !== 'undefined' ? window.matchMedia('(max-width: 1024px)') : null;
+    const handler = (e: MediaQueryListEvent | MediaQueryList) => {
+      setIsMobile(e.matches);
+    };
+    if (mq) {
+      setIsMobile(mq.matches);
+      if (typeof mq.addEventListener === 'function') mq.addEventListener('change', handler as any);
+      else if (typeof mq.addListener === 'function') mq.addListener(handler as any);
+    }
+    return () => {
+      if (mq) {
+        if (typeof mq.removeEventListener === 'function') mq.removeEventListener('change', handler as any);
+        else if (typeof mq.removeListener === 'function') mq.removeListener(handler as any);
+      }
+    };
+  }, []);
+
+  // Measure top navigation height so overlay can avoid overlapping it
+  useEffect(() => {
+    const measure = () => {
+      try {
+        const nav = document.querySelector('nav');
+        if (nav instanceof HTMLElement) {
+          const h = Math.round(nav.getBoundingClientRect().height || 0);
+          setNavOffset(h || 80);
+          return;
+        }
+      } catch (e) {
+        // ignore
+      }
+      setNavOffset(80);
+    };
+
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
   }, []);
 
   const { isStreaming, reasoningSteps, answer, error, startStream } = useNavigationStreaming({
@@ -175,7 +217,10 @@ export const MapChatbot: React.FC<MapChatbotProps> = ({
   };
 
   // Floating button when chat is closed (Only if NOT embedded)
-  if (!embedded && !isOpen) {
+  // Floating button when chat is closed
+  // - if not embedded: always show floating icon
+  // - if embedded AND mobile: show floating icon instead of embedded panel
+  if ((!embedded && !isOpen) || (embedded && isMobile && !isOpen)) {
     return (
       <button
         onClick={() => setIsOpen(true)}
@@ -202,13 +247,27 @@ export const MapChatbot: React.FC<MapChatbotProps> = ({
   }
 
   // Styles for embedded vs floating
+  // Adjust container classes: when embedded on mobile and open, show as centered overlay/fullscreen
   const containerClasses = embedded
-    ? "flex flex-col h-full bg-slate-900 rounded-2xl overflow-hidden" // Added rounded-2xl for embedded
+    ? (isMobile
+        ? `fixed z-[1200] max-w-[calc(100vw-32px)] mx-auto bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl shadow-slate-900/60 flex flex-col transition-all duration-300 ${isMinimized ? 'h-14' : 'h-[80vh] max-h-[90vh]'}`
+        : "flex flex-col h-full bg-slate-900 rounded-2xl overflow-hidden")
     : `fixed bottom-6 right-6 z-[1100] w-[360px] max-w-[calc(100vw-48px)] bg-slate-900 rounded-3xl border border-slate-700 shadow-2xl shadow-slate-900/50 flex flex-col transition-all duration-300 ${isMinimized ? 'h-14' : 'h-[480px] max-h-[70vh]'
     }`;
 
+  // If embedded on mobile, compute an inline style so overlay sits below the nav
+  const containerStyle: React.CSSProperties | undefined = (embedded && isMobile)
+    ? {
+        top: `${navOffset + 12}px`,
+        left: '12px',
+        right: '12px',
+        bottom: '16px',
+        position: 'fixed'
+      }
+    : undefined;
+
   return (
-    <div className={containerClasses}>
+    <div className={containerClasses} style={containerStyle}>
       {/* Header */}
       <div
         className={`px-4 py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 flex items-center justify-between ${
@@ -244,8 +303,8 @@ export const MapChatbot: React.FC<MapChatbotProps> = ({
             </select>
           </div>
 
-          {/* Only show controls if NOT embedded */}
-          {!embedded && (
+          {/* Show controls when not embedded, or when embedded on small screens (overlay) */}
+          {(!embedded || isMobile) && (
             <div className="flex items-center gap-1">
               <button
                 onClick={(e) => { e.stopPropagation(); setIsMinimized(!isMinimized); }}
